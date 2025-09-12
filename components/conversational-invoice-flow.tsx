@@ -223,8 +223,13 @@ export function ConversationalInvoiceFlow() {
         tax_rate: invoiceData.tax_rate,
       }
 
-      // Generate invoice number for tracking
-      const invoiceNumber = `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+      // Generate invoice number for tracking (consistent with backend)
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      const random = String(Math.floor(Math.random() * 999)).padStart(3, "0");
+      const invoiceNumber = `INV-${year}-${month}-${day}-${random}`;
       setCurrentInvoiceNumber(invoiceNumber)
 
       // Create invoice status entry

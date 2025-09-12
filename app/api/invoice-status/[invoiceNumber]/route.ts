@@ -19,12 +19,16 @@ export async function GET(
     const status = InvoiceStateManager.getInvoiceStatus(invoiceNumber)
 
     if (!status) {
+      // Return a default pending status instead of 404 for better UX
       return NextResponse.json(
         { 
-          error: "Invoice not found",
-          invoice_number: invoiceNumber
+          invoice_number: invoiceNumber,
+          status: "pending",
+          message: "Invoice submitted, waiting for processing",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         },
-        { status: 404 }
+        { status: 200 }
       )
     }
 
