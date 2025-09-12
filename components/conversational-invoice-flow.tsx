@@ -264,6 +264,13 @@ export function ConversationalInvoiceFlow() {
           })
           // Don't set isSubmitting to false - let the polling handle the completion
         }
+      } else if (response.status === "accepted") {
+        // Invoice accepted for processing, start polling
+        toast({
+          title: "Invoice Accepted",
+          description: "Your invoice has been accepted for processing. You'll be notified when it's ready.",
+        })
+        // Don't set isSubmitting to false - let the polling handle the completion
       } else {
         throw new Error(response.message || "Failed to submit invoice")
       }

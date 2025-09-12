@@ -108,34 +108,49 @@ export async function submitInvoiceToWebhook(invoiceData: InvoiceData) {
       };
     }
 
-    // 🔹 Check for PDF URL in response
-    const pdfUrl = response.data?.pdf_url || response.data?.pdfUrl || response.data?.download_url;
+    // 🔹 Handle different response types
+    let responseData = response.data;
     
-    if (!pdfUrl) {
-      console.error("[INVOICE-ACTIONS] No PDF URL in response:", response.data);
+    // If response is a string (like "Accepted"), treat it as accepted status
+    if (typeof responseData === 'string') {
+      console.log("[INVOICE-ACTIONS] Received string response, treating as accepted:", responseData);
       return {
-        status: "error",
-        message: "Make.com webhook did not return a PDF URL. Ensure your scenario returns: { status: 'success', pdf_url: 'https://...' }",
+        status: "accepted",
+        message: `Invoice accepted for processing: ${responseData}`,
       };
     }
-
-    // 🔹 Validate PDF URL format
-    try {
-      new URL(pdfUrl);
-    } catch {
-      return {
-        status: "error",
-        message: "Invalid PDF URL format returned by Make.com webhook.",
-      };
+    
+    // If response is an object, check for PDF URL or status
+    if (typeof responseData === 'object' && responseData !== null) {
+      const pdfUrl = responseData.pdf_url || responseData.pdfUrl || responseData.download_url;
+      
+      if (pdfUrl) {
+        // Direct PDF URL returned
+        console.log("[INVOICE-ACTIONS] ✅ Direct PDF URL received:", pdfUrl);
+        return {
+          status: "success",
+          pdf_url: pdfUrl,
+          message: responseData.message || "Invoice generated successfully"
+        };
+      }
+      
+      // Check if it's an accepted status
+      if (responseData.status === 'accepted' || responseData.status === 'processing') {
+        console.log("[INVOICE-ACTIONS] Invoice accepted for processing");
+        return {
+          status: "accepted",
+          message: responseData.message || "Invoice accepted for processing",
+        };
+      }
     }
-
-    console.log("[INVOICE-ACTIONS] ✅ Success! PDF URL received:", pdfUrl);
-
-    return { 
-      status: "success", 
-      pdf_url: pdfUrl,
-      message: response.data?.message || "Invoice generated successfully"
+    
+    // If we get here, the response format is unexpected
+    console.error("[INVOICE-ACTIONS] Unexpected response format:", responseData);
+    return {
+      status: "error",
+      message: `Unexpected response format from Make.com: ${JSON.stringify(responseData)}. Expected JSON object with pdf_url or status field.`,
     };
+
 
   } catch (error: any) {
     console.error("[INVOICE-ACTIONS] Webhook submission failed:", error);
