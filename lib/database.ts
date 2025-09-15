@@ -1,14 +1,36 @@
 import Database from 'better-sqlite3'
 import path from 'path'
 import fs from 'fs'
+import os from 'os'
+
+// Resolve a writable database file path across environments
+function resolveDatabasePath(): string {
+  // Allow override via env
+  const explicit = process.env.DATABASE_FILE
+  if (explicit && explicit.trim().length > 0) return explicit
+
+  // Vercel/serverless: use tmp writable dir
+  const isVercel = !!process.env.VERCEL
+  if (isVercel) {
+    const tmpDir = process.env.TMPDIR || os.tmpdir()
+    return path.join(tmpDir, 'invoice_app.db')
+  }
+
+  // Local/dev: store under ./data
+  return path.join(process.cwd(), 'data', 'invoice_app.db')
+}
 
 // Database file path
-const DB_PATH = path.join(process.cwd(), 'data', 'invoice_app.db')
+const DB_PATH = resolveDatabasePath()
 
 // Ensure data directory exists
 const dataDir = path.dirname(DB_PATH)
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true })
+try {
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true })
+  }
+} catch {
+  // In some serverless environments the parent dir already exists or cannot be created; ignore
 }
 
 // Database instance

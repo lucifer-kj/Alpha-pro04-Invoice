@@ -1,3 +1,5 @@
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getDatabase } from '@/lib/database'
@@ -241,6 +243,11 @@ async function handleInvoiceProcessed(payload: any) {
   
   try {
     // Update invoice status in database
+    // Ensure invoice exists
+    if (!InvoiceStateManager.getInvoiceStatus(invoiceData.invoice_number)) {
+      InvoiceStateManager.createInvoice(invoiceData.invoice_number)
+    }
+
     if (invoiceData.status === 'success' && invoiceData.pdf_url) {
       InvoiceStateManager.markAsCompleted(invoiceData.invoice_number, invoiceData.pdf_url)
       console.log(`[Make.com] Invoice ${invoiceData.invoice_number} marked as completed`)
@@ -267,7 +274,13 @@ async function handleInvoiceGenerated(payload: any) {
   console.log('[Make.com] Invoice generated:', payload)
   
   try {
-    // Update invoice status if we have invoice number and PDF URL
+    // Ensure invoice exists and update status if we have invoice number and PDF URL
+    if (payload.invoice_number) {
+      if (!InvoiceStateManager.getInvoiceStatus(payload.invoice_number)) {
+        InvoiceStateManager.createInvoice(payload.invoice_number)
+      }
+    }
+
     if (payload.invoice_number && payload.pdf_url) {
       InvoiceStateManager.markAsCompleted(payload.invoice_number, payload.pdf_url)
       console.log(`[Make.com] Invoice ${payload.invoice_number} marked as completed with PDF`)

@@ -25,7 +25,7 @@ function InvoiceSuccessContent() {
   const [invoiceData, setInvoiceData] = useState<InvoiceSuccessData | null>(null)
   const [isDownloading, setIsDownloading] = useState(false)
   const invoiceNumber = searchParams.get("invoice_number")
-  const { status, isGenerating, isPending, isCompleted, isFailed } = useInvoiceStatus(invoiceNumber, { enabled: Boolean(invoiceNumber), pollInterval: 2000 })
+  const { status, isGenerating, isPending, isCompleted, isFailed } = useInvoiceStatus(invoiceNumber, { enabled: Boolean(invoiceNumber), pollInterval: 2000, maxPollAttempts: 15 })
 
   useEffect(() => {
     // Prefer server status; fallback to any session data for display continuity
