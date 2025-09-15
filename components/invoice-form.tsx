@@ -117,30 +117,10 @@ export function InvoiceForm() {
 
       console.log("[v0] Webhook response received:", response)
 
-      if (response.status === "success") {
-        // Store invoice data for the success page
-        const successData = {
-          invoice_number: invoiceData.invoice_number,
-          client_name: invoiceData.client_name,
-          total_due: invoiceData.total_due,
-          pdf_url: response.pdf_url || "",
-          invoice_date: invoiceData.invoice_date,
-          due_date: invoiceData.due_date,
-        }
-        
-        // Store in session storage as backup
-        sessionStorage.setItem("lastInvoiceData", JSON.stringify(successData))
-        
-        // Redirect to success page with data as URL params
-        const params = new URLSearchParams({
-          invoice_number: invoiceData.invoice_number,
-          client_name: invoiceData.client_name,
-          total_due: invoiceData.total_due.toString(),
-          pdf_url: response.pdf_url || "",
-          invoice_date: invoiceData.invoice_date,
-          due_date: invoiceData.due_date,
-        })
-        
+      if (response.status === "success" || response.status === "accepted") {
+        // Always redirect with only the invoice_number; success page will poll DB
+        const invoiceNumber = response.invoice_number || invoiceData.invoice_number
+        const params = new URLSearchParams({ invoice_number: invoiceNumber })
         window.location.href = `/invoice-success?${params.toString()}`
       } else {
         throw new Error(response.message || "Failed to generate PDF")

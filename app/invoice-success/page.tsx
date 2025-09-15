@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle, Download, ArrowLeft, FileText } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useInvoiceStatus } from "@/hooks/use-invoice-status"
 
 interface InvoiceSuccessData {
   invoice_number: string
@@ -23,33 +24,25 @@ function InvoiceSuccessContent() {
   const { toast } = useToast()
   const [invoiceData, setInvoiceData] = useState<InvoiceSuccessData | null>(null)
   const [isDownloading, setIsDownloading] = useState(false)
+  const invoiceNumber = searchParams.get("invoice_number")
+  const { status, isGenerating, isPending, isCompleted, isFailed } = useInvoiceStatus(invoiceNumber, { enabled: Boolean(invoiceNumber), pollInterval: 2000 })
 
   useEffect(() => {
-    // Get invoice data from URL params or session storage
-    const invoiceNumber = searchParams.get("invoice_number")
-    const clientName = searchParams.get("client_name")
-    const totalDue = searchParams.get("total_due")
-    const pdfUrl = searchParams.get("pdf_url")
-    const invoiceDate = searchParams.get("invoice_date")
-    const dueDate = searchParams.get("due_date")
+    // Prefer server status; fallback to any session data for display continuity
+    const storedData = typeof window !== 'undefined' ? sessionStorage.getItem("lastInvoiceData") : null
+    const base = storedData ? JSON.parse(storedData) as Partial<InvoiceSuccessData> : {}
 
-    if (invoiceNumber && clientName && totalDue && pdfUrl) {
-      setInvoiceData({
+    if (invoiceNumber) {
+      setInvoiceData(prev => ({
         invoice_number: invoiceNumber,
-        client_name: clientName,
-        total_due: parseFloat(totalDue),
-        pdf_url: pdfUrl,
-        invoice_date: invoiceDate || "",
-        due_date: dueDate || "",
-      })
-    } else {
-      // Try to get from session storage as fallback
-      const storedData = sessionStorage.getItem("lastInvoiceData")
-      if (storedData) {
-        setInvoiceData(JSON.parse(storedData))
-      }
+        client_name: prev?.client_name || base.client_name || "",
+        total_due: prev?.total_due || base.total_due || 0,
+        pdf_url: status?.pdf_url || prev?.pdf_url || "",
+        invoice_date: prev?.invoice_date || base.invoice_date || "",
+        due_date: prev?.due_date || base.due_date || "",
+      } as InvoiceSuccessData))
     }
-  }, [searchParams])
+  }, [searchParams, status?.pdf_url, invoiceNumber])
 
   const handleDownload = async () => {
     if (!invoiceData?.pdf_url) return
@@ -137,9 +130,15 @@ function InvoiceSuccessContent() {
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Status</label>
-                <Badge variant="secondary" className="text-green-700 bg-green-100">
-                  Ready for Download
-                </Badge>
+                {isCompleted && (
+                  <Badge variant="secondary" className="text-green-700 bg-green-100">Ready for Download</Badge>
+                )}
+                {isGenerating || isPending ? (
+                  <Badge variant="secondary" className="text-amber-700 bg-amber-100">Generating...</Badge>
+                ) : null}
+                {isFailed ? (
+                  <Badge variant="secondary" className="text-red-700 bg-red-100">Failed</Badge>
+                ) : null}
               </div>
             </div>
 
@@ -164,7 +163,7 @@ function InvoiceSuccessContent() {
         <div className="flex flex-col sm:flex-row gap-4">
           <Button
             onClick={handleDownload}
-            disabled={isDownloading}
+            disabled={isDownloading || !status?.pdf_url}
             className="flex-1 bg-green-600 hover:bg-green-700"
             size="lg"
           >
@@ -176,7 +175,7 @@ function InvoiceSuccessContent() {
             ) : (
               <>
                 <Download className="h-4 w-4 mr-2" />
-                Download Invoice PDF
+                {status?.pdf_url ? 'Download Invoice PDF' : 'Waiting for PDF URL...'}
               </>
             )}
           </Button>

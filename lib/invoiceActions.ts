@@ -87,6 +87,15 @@ export async function submitInvoiceToWebhook(invoiceData: InvoiceData) {
     console.log("[INVOICE-ACTIONS] Sending invoice to Make.com webhook...");
     console.log("[INVOICE-ACTIONS] Payload:", JSON.stringify(payload, null, 2));
 
+    // 🔹 Ensure an invoice record exists as 'generating'
+    try {
+      await fetch(`/api/invoice-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoice_number: invoiceNumber, status: 'generating' })
+      })
+    } catch {}
+
     // 🔹 Send to Make.com webhook
     const response = await axios.post(
       "https://hook.eu2.make.com/84agsujsolsdlfazqvco8mo06ctypst9",
@@ -127,9 +136,19 @@ export async function submitInvoiceToWebhook(invoiceData: InvoiceData) {
       if (pdfUrl) {
         // Direct PDF URL returned
         console.log("[INVOICE-ACTIONS] ✅ Direct PDF URL received:", pdfUrl);
+        // Persist completed status with URL
+        try {
+          await fetch(`/api/invoice-status/${invoiceNumber}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'completed', pdf_url: pdfUrl })
+          })
+        } catch {}
+
         return {
           status: "success",
           pdf_url: pdfUrl,
+          invoice_number: invoiceNumber,
           message: responseData.message || "Invoice generated successfully"
         };
       }
@@ -139,6 +158,7 @@ export async function submitInvoiceToWebhook(invoiceData: InvoiceData) {
         console.log("[INVOICE-ACTIONS] Invoice accepted for processing");
         return {
           status: "accepted",
+          invoice_number: invoiceNumber,
           message: responseData.message || "Invoice accepted for processing",
         };
       }
@@ -187,8 +207,18 @@ export async function submitInvoiceToWebhook(invoiceData: InvoiceData) {
       };
     }
     
+    // Persist failure status
+    try {
+      await fetch(`/api/invoice-status/${invoiceNumber}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'failed', error_message: error.message || 'Unknown error' })
+      })
+    } catch {}
+
     return {
       status: "error",
+      invoice_number: invoiceNumber,
       message: error.message || "Failed to generate invoice. Please try again.",
     };
   }
