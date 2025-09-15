@@ -10,7 +10,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Progress } from "@/components/ui/progress"
 import { submitInvoiceToWebhook } from "@/lib/invoiceActions"
 import { useInvoiceStatus } from "@/hooks/use-invoice-status"
-import InvoiceStateManager from "@/lib/invoice-state"
 import { parseServicesText } from "@/lib/text-parser"
 import { calculateInvoiceTotals } from "@/lib/invoice-calculations"
 import { validateEmail } from "@/lib/validation"
@@ -237,9 +236,15 @@ export function ConversationalInvoiceFlow() {
       setWebhookError(errorMessage)
       setIsSubmitting(false)
       
-      // Mark invoice as failed if we have an invoice number
+      // Mark invoice as failed via API if we have an invoice number
       if (currentInvoiceNumber) {
-        InvoiceStateManager.markAsFailed(currentInvoiceNumber, errorMessage)
+        try {
+          await fetch(`/api/invoice-status/${currentInvoiceNumber}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'failed', error_message: errorMessage })
+          })
+        } catch {}
       }
       
       toast({

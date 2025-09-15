@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { checkRateLimit, getClientIP } from './lib/rate-limit'
+import { checkRateLimit, getClientIP, apiRateLimiter } from './lib/rate-limit'
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -131,7 +131,7 @@ export function middleware(request: NextRequest) {
   // Apply rate limiting to other API endpoints
   if (pathname.startsWith('/api/')) {
     const clientIP = getClientIP(request)
-    const rateLimitResult = checkRateLimit(clientIP, require('./lib/rate-limit').apiRateLimiter)
+    const rateLimitResult = checkRateLimit(clientIP, apiRateLimiter)
 
     response.headers.set('X-RateLimit-Limit', '100')
     response.headers.set('X-RateLimit-Remaining', rateLimitResult.remaining.toString())
