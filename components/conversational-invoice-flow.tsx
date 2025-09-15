@@ -14,6 +14,7 @@ import { parseServicesText } from "@/lib/text-parser"
 import { calculateInvoiceTotals } from "@/lib/invoice-calculations"
 import { validateEmail } from "@/lib/validation"
 import { useToast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
 import {
   ArrowRight,
   ArrowLeft,
@@ -62,6 +63,7 @@ interface InvoiceData {
 
 export function ConversationalInvoiceFlow() {
   const { toast } = useToast()
+  const router = useRouter()
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
@@ -221,16 +223,34 @@ export function ConversationalInvoiceFlow() {
 
       const response = await submitInvoiceToWebhook(transformedInvoiceData)
 
-      if (response.status === "success" && response.pdf_url) {
-        setPdfUrl(response.pdf_url)
-        setShowThankYou(true)
-        toast({
-          title: "🎉 Invoice Generated!",
-          description: "Your professional invoice is ready for download.",
-        })
-      } else {
-        throw new Error(response.message || "Failed to generate PDF")
+      // Ensure we have the invoice number to start polling/redirect
+      const invoiceNumberFromServer = response.invoice_number || invoiceData.invoice_number
+      if (invoiceNumberFromServer) {
+        setCurrentInvoiceNumber(invoiceNumberFromServer)
+        // Store lightweight details for success page display continuity
+        try {
+          sessionStorage.setItem("lastInvoiceData", JSON.stringify({
+            client_name: invoiceData.client_name,
+            total_due: invoiceData.total_due,
+            invoice_date: invoiceData.invoice_date,
+            due_date: invoiceData.due_date,
+          }))
+        } catch {}
       }
+
+      if (response.status === "success" && response.pdf_url) {
+        // Direct success: go to success page immediately
+        router.push(`/invoice-success?invoice_number=${encodeURIComponent(invoiceNumberFromServer)}`)
+        return
+      }
+
+      if (response.status === "accepted") {
+        // Background processing: redirect to success page which will poll
+        router.push(`/invoice-success?invoice_number=${encodeURIComponent(invoiceNumberFromServer)}`)
+        return
+      }
+
+      throw new Error(response.message || "Failed to initiate invoice generation")
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to generate invoice"
       setWebhookError(errorMessage)
@@ -307,6 +327,16 @@ export function ConversationalInvoiceFlow() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Full-screen Generating Overlay */}
+      {(isSubmitting || isPolling) && (
+        <div className="fixed inset-0 z-50 bg-white/70 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white border border-gray-200 rounded-xl shadow-md px-8 py-6 text-center">
+            <div className="w-10 h-10 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-900 font-medium">Generating your invoice...</p>
+            <p className="text-gray-600 text-sm mt-1">This can take up to 1 minute.</p>
+          </div>
+        </div>
+      )}
       {/* Mobile Progress Bar */}
       <div className="lg:hidden bg-white border-b border-gray-100 px-4 py-4">
         <div className="flex items-center justify-between mb-3">

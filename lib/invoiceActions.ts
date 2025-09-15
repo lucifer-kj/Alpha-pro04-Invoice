@@ -102,7 +102,7 @@ export async function submitInvoiceToWebhook(invoiceData: InvoiceData) {
       payload,
       {
         headers: { "Content-Type": "application/json" },
-        timeout: 15000,
+        timeout: 30000,
       }
     );
 
@@ -178,8 +178,8 @@ export async function submitInvoiceToWebhook(invoiceData: InvoiceData) {
     // 🔹 Enhanced error handling
     if (error.code === 'ECONNABORTED') {
       return {
-        status: "error",
-        message: "Make.com webhook timed out (15s). Your scenario may be taking too long. Try optimizing it.",
+        status: "accepted",
+        message: "Make.com webhook timed out. Continuing to wait for callback.",
       };
     }
     
@@ -196,8 +196,8 @@ export async function submitInvoiceToWebhook(invoiceData: InvoiceData) {
       
       if (status >= 500) {
         return {
-          status: "error",
-          message: "Make.com webhook server error. Please try again later or check your scenario.",
+          status: "accepted",
+          message: "Make.com reported a server timeout/error. Continuing to wait for callback.",
         };
       }
       
