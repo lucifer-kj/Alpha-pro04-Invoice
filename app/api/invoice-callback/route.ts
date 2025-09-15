@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import InvoiceStateManager from '@/lib/invoice-state'
 
 // Validation schema
 const invoiceCallbackSchema = z.object({
   invoice_number: z.string().min(1, "Invoice number is required"),
   status: z.enum(['success', 'failed', 'processing']),
   pdf_base64: z.string().optional(),
-  download_url: z.string().url().optional()
+  download_url: z.string().url().optional(),
+  // Accept alias commonly used by workflows
+  pdf_url: z.string().url().optional()
 });
 
 export async function POST(request: Request) {
@@ -21,7 +24,12 @@ export async function POST(request: Request) {
     }
 
     // 2. Parse and validate payload
-    const payload = await request.json();
+    let payload: any
+    try {
+      payload = await request.json();
+    } catch (err) {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
     const validation = invoiceCallbackSchema.safeParse(payload);
 
     if (!validation.success) {
@@ -34,10 +42,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const { invoice_number, status, pdf_base64, download_url } = validation.data;
+    const { invoice_number, status, pdf_base64, download_url, pdf_url } = validation.data;
 
     // 3. Validate that we have either base64 or download URL for success status
-    if (status === 'success' && !pdf_base64 && !download_url) {
+    const resolvedPdfUrl = download_url || pdf_url
+
+    if (status === 'success' && !pdf_base64 && !resolvedPdfUrl) {
       return NextResponse.json(
         { error: 'Successful invoices require either pdf_base64 or download_url' },
         { status: 400 }
@@ -62,6 +72,24 @@ export async function POST(request: Request) {
       // await saveInvoicePdf(invoice_number, pdfBuffer);
     }
 
+    // Update invoice status in our DB for polling UI
+    try {
+      if (status === 'success') {
+        if (resolvedPdfUrl) {
+          InvoiceStateManager.markAsCompleted(invoice_number, resolvedPdfUrl)
+        } else {
+          // If only base64 provided, mark as completed without URL
+          InvoiceStateManager.updateInvoiceStatus(invoice_number, { status: 'completed' })
+        }
+      } else if (status === 'failed') {
+        InvoiceStateManager.markAsFailed(invoice_number, 'Processing failed')
+      } else if (status === 'processing') {
+        InvoiceStateManager.markAsGenerating(invoice_number)
+      }
+    } catch (e) {
+      console.error('Failed to update invoice status from callback:', e)
+    }
+
     // 5. Return success response
     return NextResponse.json(
       {
@@ -69,6 +97,7 @@ export async function POST(request: Request) {
         message: 'Invoice callback processed successfully',
         invoice_number,
         status,
+        pdf_url: resolvedPdfUrl,
         received_at: new Date().toISOString()
       },
       { status: 200 }
