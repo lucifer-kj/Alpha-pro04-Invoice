@@ -5,7 +5,7 @@ I've analyzed your comprehensive Make.com integration guide and examined your ex
 **✅ Already Implemented:**
 - **Make.com webhook endpoint** (`/app/api/webhooks/make/route.ts`) with proper authentication, validation, and event handling
 - **Frontend component** (`components/make-webhook-data.tsx`) to display received webhook data with a polished UI
-- **Webhook client library** (`lib/webhook-client.ts`) with functions to send data to and retrieve data from Make.com
+- **Simplified webhook integration** using `lib/invoiceActions.ts` for direct Make.com communication
 - **Rate limiting middleware** (`middleware.ts`) for security
 - **Comprehensive documentation** (`WEBHOOK_SETUP.md`) covering the existing webhook system
 

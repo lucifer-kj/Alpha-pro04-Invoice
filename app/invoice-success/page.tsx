@@ -29,7 +29,7 @@ function InvoiceSuccessContent() {
   const { status, isGenerating, isPending, isCompleted, isFailed, isTimedOut, timeRemaining } = useInvoiceStatus(invoiceNumber, { 
     enabled: Boolean(invoiceNumber) && !shouldStopPolling, // Stop polling when we decide to stop
     pollInterval: 2000, 
-    maxPollAttempts: 10 // Only poll for 20 seconds on success page (10 × 2s = 20s)
+    maxPollAttempts: 60 // Poll for 2 minutes to give Make.com enough time (60 × 2s = 120s)
   })
 
   useEffect(() => {
@@ -49,12 +49,12 @@ function InvoiceSuccessContent() {
     }
   }, [searchParams, status?.pdf_url, invoiceNumber])
 
-  // Stop polling when we get a PDF URL or when we timeout
+  // Stop polling when we get a PDF URL (success) or when invoice fails
   useEffect(() => {
-    if (status?.pdf_url || isTimedOut) {
+    if (status?.pdf_url || status?.status === 'failed') {
       setShouldStopPolling(true)
     }
-  }, [status?.pdf_url, isTimedOut])
+  }, [status?.pdf_url, status?.status])
 
   const handleDownload = async () => {
     if (!invoiceData?.pdf_url) return

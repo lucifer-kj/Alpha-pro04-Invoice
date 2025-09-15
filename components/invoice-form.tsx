@@ -8,12 +8,11 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ConversationalInput } from "./conversational-input"
 import { InvoicePreview } from "./invoice-preview"
-import { WebhookConfig } from "./webhook-config"
 import { calculateInvoiceTotals } from "@/lib/invoice-calculations"
 import { validateInvoiceData } from "@/lib/validation"
 import { submitInvoiceToWebhook } from "@/lib/invoiceActions"
 import { useToast } from "@/hooks/use-toast"
-import { Download, ExternalLink, User, Settings2 } from "lucide-react"
+import { Download, ExternalLink, User } from "lucide-react"
 
 export interface LineItem {
   description: string
@@ -44,10 +43,6 @@ export function InvoiceForm() {
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
-  const [showWebhookConfig, setShowWebhookConfig] = useState(false)
-  const [webhookConfig, setWebhookConfig] = useState({
-    url: "https://hook.eu2.make.com/84agsujsolsdlfazqvco8mo06ctypst9",
-  })
 
   const [invoiceData, setInvoiceData] = useState<InvoiceData>({
     invoice_number: "",
@@ -141,26 +136,6 @@ export function InvoiceForm() {
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
       {/* Left Column - Form (2/3 width on xl screens) */}
       <div className="xl:col-span-2 space-y-6">
-        {/* Webhook Configuration - Collapsible on mobile */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Settings2 className="h-5 w-5 text-primary" />
-              Configuration
-            </h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowWebhookConfig(!showWebhookConfig)}
-              className="md:hidden"
-            >
-              {showWebhookConfig ? "Hide" : "Show"}
-            </Button>
-          </div>
-          <div className={`${showWebhookConfig ? "block" : "hidden"} md:block`}>
-            <WebhookConfig onConfigChange={setWebhookConfig} />
-          </div>
-        </div>
 
         {/* Client Information */}
         <Card className="shadow-sm border-border/50">

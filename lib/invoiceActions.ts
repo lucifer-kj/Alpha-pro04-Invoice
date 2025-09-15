@@ -66,7 +66,11 @@ export async function submitInvoiceToWebhook(invoiceData: InvoiceData) {
       {} as Record<string, string>
     );
 
-    // 🔹 Build final payload
+    // 🔹 Build final payload with callback URL
+    const callbackUrl = typeof window !== 'undefined' 
+      ? `${window.location.origin}/api/invoice-callback`
+      : `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/invoice-callback`;
+
     const payload = {
       invoice_number: invoiceNumber,
       invoice_date: invoiceDate,
@@ -77,6 +81,7 @@ export async function submitInvoiceToWebhook(invoiceData: InvoiceData) {
       client_state_zip: invoiceData.client.cityState || "",
       client_email: invoiceData.client.email,
       client_phone: invoiceData.client.phone || "",
+      callback_url: callbackUrl, // Make.com needs this to know where to send the PDF URL
       ...itemsPayload,
       subtotal: formatCurrency(invoiceData.subtotal),
       tax_rate: `${invoiceData.tax_rate}%`,
@@ -87,16 +92,14 @@ export async function submitInvoiceToWebhook(invoiceData: InvoiceData) {
     console.log("[INVOICE-ACTIONS] Sending invoice to Make.com webhook...");
     console.log("[INVOICE-ACTIONS] Payload:", JSON.stringify(payload, null, 2));
 
-    // 🔹 Create invoice record in database
+    // 🔹 Ensure an invoice record exists as 'generating'
     try {
       await fetch(`/api/invoice-status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ invoice_number: invoiceNumber, status: 'generating' })
       })
-    } catch (error) {
-      console.error("[INVOICE-ACTIONS] Failed to create invoice record:", error)
-    }
+    } catch {}
 
     // 🔹 Send to Make.com webhook
     const response = await axios.post(
@@ -127,6 +130,7 @@ export async function submitInvoiceToWebhook(invoiceData: InvoiceData) {
       console.log("[INVOICE-ACTIONS] Received string response, treating as accepted:", responseData);
       return {
         status: "accepted",
+        invoice_number: invoiceNumber,
         message: `Invoice accepted for processing: ${responseData}`,
       };
     }
