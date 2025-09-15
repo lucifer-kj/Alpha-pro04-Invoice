@@ -24,8 +24,13 @@ function InvoiceSuccessContent() {
   const { toast } = useToast()
   const [invoiceData, setInvoiceData] = useState<InvoiceSuccessData | null>(null)
   const [isDownloading, setIsDownloading] = useState(false)
+  const [shouldStopPolling, setShouldStopPolling] = useState(false)
   const invoiceNumber = searchParams.get("invoice_number")
-  const { status, isGenerating, isPending, isCompleted, isFailed, isTimedOut, timeRemaining } = useInvoiceStatus(invoiceNumber, { enabled: Boolean(invoiceNumber), pollInterval: 2000, maxPollAttempts: 15 })
+  const { status, isGenerating, isPending, isCompleted, isFailed, isTimedOut, timeRemaining } = useInvoiceStatus(invoiceNumber, { 
+    enabled: Boolean(invoiceNumber) && !shouldStopPolling, // Stop polling when we decide to stop
+    pollInterval: 2000, 
+    maxPollAttempts: 10 // Only poll for 20 seconds on success page (10 × 2s = 20s)
+  })
 
   useEffect(() => {
     // Prefer server status; fallback to any session data for display continuity
@@ -43,6 +48,13 @@ function InvoiceSuccessContent() {
       } as InvoiceSuccessData))
     }
   }, [searchParams, status?.pdf_url, invoiceNumber])
+
+  // Stop polling when we get a PDF URL or when we timeout
+  useEffect(() => {
+    if (status?.pdf_url || isTimedOut) {
+      setShouldStopPolling(true)
+    }
+  }, [status?.pdf_url, isTimedOut])
 
   const handleDownload = async () => {
     if (!invoiceData?.pdf_url) return
@@ -113,6 +125,11 @@ function InvoiceSuccessContent() {
                 'Your professional invoice has been created and is ready for download.'
               )}
             </p>
+            {shouldStopPolling && !status?.pdf_url && (
+              <p className="text-sm text-gray-600 mt-2">
+                Status checking has stopped. You can refresh the page or try generating another invoice.
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -146,6 +163,8 @@ function InvoiceSuccessContent() {
                     <Badge variant="secondary" className="text-green-700 bg-green-100">Completed</Badge>
                   ) : isFailed ? (
                     <Badge variant="secondary" className="text-red-700 bg-red-100">Failed</Badge>
+                  ) : shouldStopPolling && !status?.pdf_url ? (
+                    <Badge variant="secondary" className="text-gray-700 bg-gray-100">Check Manually</Badge>
                   ) : showTimeout ? (
                     <Badge variant="secondary" className="text-amber-700 bg-amber-100">Processing...</Badge>
                   ) : (
