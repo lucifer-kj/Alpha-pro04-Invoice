@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Progress } from "@/components/ui/progress"
-import { submitInvoiceToWebhook } from "@/lib/webhook-client"
+import { submitInvoiceToWebhook } from "@/lib/invoiceActions"
+import { useInvoiceStatus } from "@/hooks/use-invoice-status"
+import InvoiceStateManager from "@/lib/invoice-state"
 import { parseServicesText } from "@/lib/text-parser"
 import { calculateInvoiceTotals } from "@/lib/invoice-calculations"
 import { validateEmail } from "@/lib/validation"
@@ -67,6 +69,22 @@ export function ConversationalInvoiceFlow() {
   const [animateIn, setAnimateIn] = useState(false)
   const [showThankYou, setShowThankYou] = useState(false)
   const [webhookError, setWebhookError] = useState<string | null>(null)
+  const [currentInvoiceNumber, setCurrentInvoiceNumber] = useState<string | null>(null)
+
+  // Poll invoice status when an invoice is being generated
+  const {
+    status: invoiceStatus,
+    loading: statusLoading,
+    error: statusError,
+    isCompleted,
+    isFailed,
+    isGenerating,
+    isPolling
+  } = useInvoiceStatus(currentInvoiceNumber, {
+    pollInterval: 3000, // Check every 3 seconds
+    maxPollAttempts: 40, // Poll for up to 2 minutes
+    enabled: !!currentInvoiceNumber && !pdfUrl // Only poll if we have an invoice number but no PDF yet
+  })
 
   const [invoiceData, setInvoiceData] = useState<InvoiceData>({
     client_name: "",
@@ -122,6 +140,29 @@ export function ConversationalInvoiceFlow() {
     setAnimateIn(true)
   }, [currentStep])
 
+  // Handle invoice status updates
+  useEffect(() => {
+    if (isCompleted && invoiceStatus?.pdf_url) {
+      console.log("[INVOICE-FLOW] Invoice completed, PDF ready:", invoiceStatus.pdf_url)
+      setPdfUrl(invoiceStatus.pdf_url)
+      setShowThankYou(true)
+      setIsSubmitting(false)
+      toast({
+        title: "🎉 Invoice Generated!",
+        description: "Your professional invoice is ready for download.",
+      })
+    } else if (isFailed && invoiceStatus?.error_message) {
+      console.log("[INVOICE-FLOW] Invoice generation failed:", invoiceStatus.error_message)
+      setWebhookError(invoiceStatus.error_message)
+      setIsSubmitting(false)
+      toast({
+        title: "Error",
+        description: invoiceStatus.error_message,
+        variant: "destructive",
+      })
+    }
+  }, [isCompleted, isFailed, invoiceStatus, toast])
+
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
       setAnimateIn(false)
@@ -142,8 +183,17 @@ export function ConversationalInvoiceFlow() {
     if (text.trim()) {
       const parsed = parseServicesText(text)
       const updated = { ...invoiceData, line_items: parsed, services_text: text }
-      const calculated = calculateInvoiceTotals(updated)
-      setInvoiceData(calculated)
+      // Transform to match the expected InvoiceData type for calculations
+      const dataForCalculation = {
+        ...updated,
+        invoice_number: updated.invoice_number,
+        invoice_date: updated.invoice_date,
+        due_date: updated.due_date,
+        notes: updated.notes,
+      }
+      const calculated = calculateInvoiceTotals(dataForCalculation)
+      // Merge back the calculated values while preserving services_text
+      setInvoiceData({ ...updated, ...calculated })
     }
   }
 
@@ -153,59 +203,46 @@ export function ConversationalInvoiceFlow() {
 
     try {
       const response = await submitInvoiceToWebhook(invoiceData, {
-        url: "http://localhost:3000/api",
+        url: "http://localhost:5678/webhook-test/88743cc0-d465-4fdb-a322-91f402cf6386",
         headers: { "Content-Type": "application/json" },
       })
 
-      if (response.status === "success") {
-        // Store invoice data for the success page
-        const successData = {
-          invoice_number: invoiceData.invoice_number,
-          client_name: invoiceData.client_name,
-          total_due: invoiceData.total_due,
-          pdf_url: response.pdf_url || "",
-          invoice_date: invoiceData.invoice_date,
-          due_date: invoiceData.due_date,
-        }
-        
-        // Store in session storage as backup
-        sessionStorage.setItem("lastInvoiceData", JSON.stringify(successData))
-        
-        // Redirect to success page with data as URL params
-        const params = new URLSearchParams({
-          invoice_number: invoiceData.invoice_number,
-          client_name: invoiceData.client_name,
-          total_due: invoiceData.total_due.toString(),
-          pdf_url: response.pdf_url || "",
-          invoice_date: invoiceData.invoice_date,
-          due_date: invoiceData.due_date,
+      if (response.status === "success" && response.pdf_url) {
+        setPdfUrl(response.pdf_url)
+        setShowThankYou(true)
+        toast({
+          title: "🎉 Invoice Generated!",
+          description: "Your professional invoice is ready for download.",
         })
-        
-        window.location.href = `/invoice-success?${params.toString()}`
       } else {
         throw new Error(response.message || "Failed to generate PDF")
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to generate invoice"
       setWebhookError(errorMessage)
+      setIsSubmitting(false)
+      
+      // Mark invoice as failed if we have an invoice number
+      if (currentInvoiceNumber) {
+        InvoiceStateManager.markAsFailed(currentInvoiceNumber, errorMessage)
+      }
+      
       toast({
         title: "Error",
         description: errorMessage,
         variant: "destructive",
       })
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
-  const canProceed = () => {
+  const canProceed = (): boolean => {
     switch (currentStep) {
       case 0:
         return true
       case 1:
-        return invoiceData.client_name && invoiceData.client_email && validateEmail(invoiceData.client_email)
+        return Boolean(invoiceData.client_name && invoiceData.client_email && validateEmail(invoiceData.client_email))
       case 2:
-        return invoiceData.services_text.trim().length > 0 && invoiceData.line_items.length > 0
+        return Boolean(invoiceData.services_text.trim().length > 0 && invoiceData.line_items.length > 0)
       case 3:
         return true
       default:
@@ -345,7 +382,7 @@ export function ConversationalInvoiceFlow() {
                     onChange={setInvoiceData}
                     onNext={handleNext}
                     onBack={handleBack}
-                    canProceed={canProceed()}
+                    canProceed={canProceed() as boolean}
                   />
                 )}
 
@@ -355,7 +392,7 @@ export function ConversationalInvoiceFlow() {
                     onChange={handleServicesChange}
                     onNext={handleNext}
                     onBack={handleBack}
-                    canProceed={canProceed()}
+                    canProceed={canProceed() as boolean}
                   />
                 )}
 
@@ -365,8 +402,11 @@ export function ConversationalInvoiceFlow() {
                     onSubmit={handleSubmit}
                     onBack={handleBack}
                     isSubmitting={isSubmitting}
-                    pdfUrl={pdfUrl}
-                    error={webhookError}
+                    pdfUrl={pdfUrl || null}
+                    error={webhookError || null}
+                    invoiceStatus={invoiceStatus}
+                    isPolling={isPolling}
+                    currentInvoiceNumber={currentInvoiceNumber}
                   />
                 )}
               </CardContent>
@@ -605,6 +645,9 @@ function ReviewStep({
   onBack,
   isSubmitting,
   error,
+  invoiceStatus,
+  isPolling,
+  currentInvoiceNumber,
 }: {
   data: InvoiceData
   onSubmit: () => void
@@ -612,6 +655,9 @@ function ReviewStep({
   isSubmitting: boolean
   pdfUrl?: string | null
   error?: string | null
+  invoiceStatus?: any
+  isPolling?: boolean
+  currentInvoiceNumber?: string | null
 }) {
   return (
     <div className="space-y-6">
@@ -625,6 +671,42 @@ function ReviewStep({
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0"></div>
             <p className="text-red-800 text-sm">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Invoice Generation Status */}
+      {isSubmitting && currentInvoiceNumber && (
+        <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+          <div className="flex items-center space-x-3">
+            <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse flex-shrink-0"></div>
+            <div className="flex-1">
+              <p className="text-blue-800 text-sm font-medium">
+                Generating your invoice...
+              </p>
+              <p className="text-blue-600 text-xs">
+                Invoice #{currentInvoiceNumber}
+                {isPolling && " • Checking for updates..."}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {invoiceStatus && (
+        <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-800 text-sm font-medium">
+                Status: {invoiceStatus.status}
+              </p>
+              <p className="text-gray-600 text-xs">
+                Last updated: {new Date(invoiceStatus.updated_at).toLocaleTimeString()}
+              </p>
+            </div>
+            {invoiceStatus.status === 'generating' && (
+              <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+            )}
           </div>
         </div>
       )}
