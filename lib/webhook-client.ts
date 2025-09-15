@@ -209,19 +209,87 @@ export async function sendToMakeWebhook(
   }
 }
 
-// Function to get Make.com webhook data (development only)
-export async function getMakeWebhookData(): Promise<MakeWebhookData[]> {
+// Function to get Make.com webhook data from database
+export async function getMakeWebhookData(options: {
+  eventType?: string
+  invoiceNumber?: string
+  limit?: number
+  offset?: number
+} = {}): Promise<{
+  data: MakeWebhookData[]
+  pagination: {
+    total: number
+    limit: number
+    offset: number
+    hasMore: boolean
+  }
+}> {
   try {
-    const response = await fetch("/api/webhooks/make")
+    const params = new URLSearchParams()
+    
+    if (options.eventType) params.append('eventType', options.eventType)
+    if (options.invoiceNumber) params.append('invoiceNumber', options.invoiceNumber)
+    if (options.limit) params.append('limit', options.limit.toString())
+    if (options.offset) params.append('offset', options.offset.toString())
+
+    const response = await fetch(`/api/webhook-data?${params.toString()}`)
     
     if (!response.ok) {
       throw new Error(`Failed to fetch webhook data: ${response.status}`)
     }
 
-    const data = await response.json()
-    return data.data || []
+    const result = await response.json()
+    
+    // Transform database format to MakeWebhookData format
+    const transformedData = result.data.map((item: any) => ({
+      eventType: item.eventType,
+      payload: item.payload,
+      metadata: item.metadata
+    }))
+
+    return {
+      data: transformedData,
+      pagination: result.pagination
+    }
   } catch (error) {
     console.error("[Make.com] Fetch error:", error)
-    return []
+    return {
+      data: [],
+      pagination: {
+        total: 0,
+        limit: options.limit || 50,
+        offset: options.offset || 0,
+        hasMore: false
+      }
+    }
+  }
+}
+
+// Function to get webhook statistics
+export async function getWebhookStats(): Promise<{
+  totalWebhooks: number
+  byEventType: Array<{ event_type: string, count: number }>
+  recentActivity: Array<{ date: string, count: number }>
+  averageProcessingTime: number
+}> {
+  try {
+    const response = await fetch("/api/webhook-data", {
+      method: "POST"
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch webhook stats: ${response.status}`)
+    }
+
+    const result = await response.json()
+    return result.stats
+  } catch (error) {
+    console.error("[Make.com] Stats fetch error:", error)
+    return {
+      totalWebhooks: 0,
+      byEventType: [],
+      recentActivity: [],
+      averageProcessingTime: 0
+    }
   }
 }

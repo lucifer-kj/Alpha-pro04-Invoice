@@ -1,17 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-
-// Type declaration for global webhook data storage
-declare global {
-  var makeWebhookData: Array<{
-    eventType: string
-    payload: Record<string, any>
-    metadata?: Record<string, any>
-    processedResult?: any
-    receivedAt: string
-    processingTime?: number
-  }> | undefined
-}
+import { getDatabase } from '@/lib/database'
+import InvoiceStateManager from '@/lib/invoice-state'
 
 // Enhanced validation schema for Make.com webhook data
 const makeWebhookSchema = z.object({
@@ -158,18 +148,35 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Store data for retrieval (in production, use a database)
-    global.makeWebhookData = global.makeWebhookData || []
-    global.makeWebhookData.push({
-      ...validatedData,
-      processedResult,
-      receivedAt: new Date().toISOString(),
-      processingTime: Date.now() - startTime
-    })
-
-    // Keep only last 100 entries to prevent memory issues
-    if (global.makeWebhookData.length > 100) {
-      global.makeWebhookData = global.makeWebhookData.slice(-100)
+    // Store webhook data in SQLite database
+    const db = getDatabase()
+    const insertWebhookData = db.prepare(`
+      INSERT INTO webhook_data (
+        event_type, 
+        payload, 
+        metadata, 
+        processed_result, 
+        received_at, 
+        processing_time,
+        invoice_number
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `)
+    
+    try {
+      insertWebhookData.run(
+        validatedData.eventType,
+        JSON.stringify(validatedData.payload),
+        validatedData.metadata ? JSON.stringify(validatedData.metadata) : null,
+        JSON.stringify(processedResult),
+        new Date().toISOString(),
+        Date.now() - startTime,
+        validatedData.metadata?.invoice_number || null
+      )
+      
+      console.log(`[Make.com] Webhook data stored in database for event: ${validatedData.eventType}`)
+    } catch (dbError) {
+      console.error('[Make.com] Error storing webhook data:', dbError)
+      // Don't fail the webhook if database storage fails
     }
 
     const processingTime = Date.now() - startTime
@@ -232,11 +239,21 @@ async function handleInvoiceProcessed(payload: any) {
 
   const invoiceData = invoiceValidation.data
   
-  // Here you could:
-  // 1. Save to database
-  // 2. Send email notifications
-  // 3. Update invoice status
-  // 4. Trigger other workflows
+  try {
+    // Update invoice status in database
+    if (invoiceData.status === 'success' && invoiceData.pdf_url) {
+      InvoiceStateManager.markAsCompleted(invoiceData.invoice_number, invoiceData.pdf_url)
+      console.log(`[Make.com] Invoice ${invoiceData.invoice_number} marked as completed`)
+    } else if (invoiceData.status === 'error') {
+      InvoiceStateManager.markAsFailed(invoiceData.invoice_number, invoiceData.message || 'Processing failed')
+      console.log(`[Make.com] Invoice ${invoiceData.invoice_number} marked as failed`)
+    } else {
+      InvoiceStateManager.markAsGenerating(invoiceData.invoice_number)
+      console.log(`[Make.com] Invoice ${invoiceData.invoice_number} marked as generating`)
+    }
+  } catch (error) {
+    console.error('[Make.com] Error updating invoice status:', error)
+  }
   
   return {
     success: true,
@@ -249,7 +266,16 @@ async function handleInvoiceProcessed(payload: any) {
 async function handleInvoiceGenerated(payload: any) {
   console.log('[Make.com] Invoice generated:', payload)
   
-  // Handle invoice generation completion
+  try {
+    // Update invoice status if we have invoice number and PDF URL
+    if (payload.invoice_number && payload.pdf_url) {
+      InvoiceStateManager.markAsCompleted(payload.invoice_number, payload.pdf_url)
+      console.log(`[Make.com] Invoice ${payload.invoice_number} marked as completed with PDF`)
+    }
+  } catch (error) {
+    console.error('[Make.com] Error updating invoice status:', error)
+  }
+  
   return {
     success: true,
     message: 'Invoice generation completed',
