@@ -11,9 +11,20 @@ export interface WebhookConfig {
   headers?: Record<string, string>
 }
 
-// Default webhook configuration - hardcoded for security
+export interface MakeWebhookData {
+  eventType: string
+  payload: Record<string, any>
+  metadata?: {
+    scenarioId?: string
+    executionId?: string
+    invoice_number?: string
+    pdf_url?: string
+  }
+}
+
+// Default webhook configuration - simple localhost API
 const DEFAULT_WEBHOOK_CONFIG: WebhookConfig = {
-  url: "http://localhost:5678/webhook-test/88743cc0-d465-4fdb-a322-91f402cf6386",
+  url: "http://localhost:5678/webhook-test/invoice-webhook",
   headers: {
     "Content-Type": "application/json",
   },
@@ -27,27 +38,30 @@ export async function submitInvoiceToWebhook(
     // Transform invoice data to match the expected JSON schema
     const payload = transformInvoiceDataForWebhook(invoiceData)
 
-    console.log("[v0] Submitting invoice to webhook:", config.url)
+    console.log("[v0] Submitting invoice to localhost API:", config.url)
     console.log("[v0] Payload:", JSON.stringify(payload, null, 2))
 
+    // Simple fetch to localhost API - exactly as requested
     const response = await fetch(config.url, {
       method: "POST",
-      headers: config.headers || {},
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(payload),
     })
 
-    console.log("[v0] Webhook response status:", response.status)
+    console.log("[v0] API response status:", response.status)
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.log("[v0] Webhook error response:", errorText)
-      throw new Error(`Webhook request failed: ${response.status} ${response.statusText}`)
+      console.log("[v0] API error:", errorText)
+      throw new Error(`API request failed: ${response.status} ${response.statusText}`)
     }
 
     let responseData
     try {
       responseData = await response.json()
-      console.log("[v0] Webhook response data:", responseData)
+      console.log("[v0] API response data:", responseData)
     } catch {
       // If response is not JSON, treat as success
       responseData = { status: "success" }
@@ -62,7 +76,7 @@ export async function submitInvoiceToWebhook(
       message: responseData.message || "Invoice submitted successfully",
     }
   } catch (error) {
-    console.error("[v0] Webhook submission error:", error)
+    console.error("[v0] API submission error:", error)
 
     return {
       status: "error",
@@ -72,47 +86,44 @@ export async function submitInvoiceToWebhook(
 }
 
 function transformInvoiceDataForWebhook(invoiceData: InvoiceData) {
-  // Transform line items to individual item/price pairs for template placeholders
-  const itemPlaceholders: Record<string, string | number> = {}
-
-  invoiceData.line_items.forEach((item, index) => {
-    const itemNum = index + 1
-    itemPlaceholders[`item${itemNum}`] = item.description
-    itemPlaceholders[`price${itemNum}`] = item.unit_price
-    itemPlaceholders[`quantity${itemNum}`] = item.quantity
-    itemPlaceholders[`total${itemNum}`] = item.total
-  })
-
+  // Clean, simple data structure for n8n webhook
   return {
-    // Invoice metadata
+    // Invoice basic info
     invoice_number: invoiceData.invoice_number,
     invoice_date: invoiceData.invoice_date,
     due_date: invoiceData.due_date,
-
-    // Client information
-    client_name: invoiceData.client_name,
-    client_address: invoiceData.client_address,
-    client_city: invoiceData.client_city,
-    client_state_zip: invoiceData.client_state_zip,
-    client_email: invoiceData.client_email,
-    client_phone: invoiceData.client_phone,
-
-    // Line items as individual placeholders (for template compatibility)
-    ...itemPlaceholders,
-
-    // Structured line items array (for modern processing)
-    line_items: invoiceData.line_items,
-
-    // Totals
-    subtotal: invoiceData.subtotal,
-    tax_rate: invoiceData.tax_rate,
-    taxes: invoiceData.taxes,
-    total_due: invoiceData.total_due,
-
-    // Additional information
+    
+    // Client details
+    client: {
+      name: invoiceData.client_name,
+      email: invoiceData.client_email,
+      phone: invoiceData.client_phone,
+      address: invoiceData.client_address,
+      city: invoiceData.client_city,
+      state_zip: invoiceData.client_state_zip,
+    },
+    
+    // Services/Items
+    services: invoiceData.line_items.map((item, index) => ({
+      id: index + 1,
+      description: item.description,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      total: item.total,
+    })),
+    
+    // Financial summary
+    totals: {
+      subtotal: invoiceData.subtotal,
+      tax_rate: invoiceData.tax_rate,
+      taxes: invoiceData.taxes,
+      total_due: invoiceData.total_due,
+    },
+    
+    // Additional info
     notes: invoiceData.notes,
-
-    // Metadata for webhook processing
+    
+    // Metadata
     timestamp: new Date().toISOString(),
     source: "alpha-business-digital-invoice-app",
   }
@@ -126,15 +137,20 @@ export async function testWebhookConnection(config: WebhookConfig = DEFAULT_WEBH
       message: "Connection test from Alpha Business Digital Invoice App",
     }
 
+    console.log("[v0] Testing n8n webhook connection:", config.url)
+
     const response = await fetch(config.url, {
       method: "POST",
-      headers: config.headers || {},
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(testPayload),
     })
 
+    console.log("[v0] n8n webhook test response:", response.status)
     return response.ok
   } catch (error) {
-    console.error("[v0] Webhook connection test failed:", error)
+    console.error("[v0] n8n webhook connection test failed:", error)
     return false
   }
 }
@@ -146,5 +162,66 @@ export function validateWebhookUrl(url: string): boolean {
     return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:"
   } catch {
     return false
+  }
+}
+
+// Function to send data to Make.com webhook endpoint
+export async function sendToMakeWebhook(
+  data: MakeWebhookData,
+  config: WebhookConfig = { url: "/api/webhooks/make" }
+): Promise<WebhookResponse> {
+  try {
+    console.log("[Make.com] Sending data to webhook:", config.url)
+    console.log("[Make.com] Data:", JSON.stringify(data, null, 2))
+
+    const response = await fetch(config.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.NEXT_PUBLIC_MAKE_WEBHOOK_SECRET || 'default-secret'}`,
+        ...(config.headers || {}),
+      },
+      body: JSON.stringify(data),
+    })
+
+    console.log("[Make.com] Response status:", response.status)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.log("[Make.com] Error response:", errorText)
+      throw new Error(`Make.com webhook failed: ${response.status} ${response.statusText}`)
+    }
+
+    const responseData = await response.json()
+    console.log("[Make.com] Response data:", responseData)
+
+    return {
+      status: "success",
+      message: responseData.message || "Data sent to Make.com successfully",
+    }
+  } catch (error) {
+    console.error("[Make.com] Send error:", error)
+
+    return {
+      status: "error",
+      message: error instanceof Error ? error.message : "Unknown error occurred",
+    }
+  }
+}
+
+// Function to get Make.com webhook data (development only)
+export async function getMakeWebhookData(): Promise<MakeWebhookData[]> {
+  try {
+    const response = await fetch("/api/webhooks/make")
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch webhook data: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.data || []
+  } catch (error) {
+    console.error("[Make.com] Fetch error:", error)
+    return []
   }
 }

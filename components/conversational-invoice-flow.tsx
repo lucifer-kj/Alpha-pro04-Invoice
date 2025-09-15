@@ -149,22 +149,39 @@ export function ConversationalInvoiceFlow() {
 
   const handleSubmit = async () => {
     setIsSubmitting(true)
-    setPdfUrl(null)
     setWebhookError(null)
 
     try {
       const response = await submitInvoiceToWebhook(invoiceData, {
-        url: "http://localhost:5678/webhook-test/88743cc0-d465-4fdb-a322-91f402cf6386",
+        url: "http://localhost:3000/api",
         headers: { "Content-Type": "application/json" },
       })
 
-      if (response.status === "success" && response.pdf_url) {
-        setPdfUrl(response.pdf_url)
-        setShowThankYou(true)
-        toast({
-          title: "🎉 Invoice Generated!",
-          description: "Your professional invoice is ready for download.",
+      if (response.status === "success") {
+        // Store invoice data for the success page
+        const successData = {
+          invoice_number: invoiceData.invoice_number,
+          client_name: invoiceData.client_name,
+          total_due: invoiceData.total_due,
+          pdf_url: response.pdf_url || "",
+          invoice_date: invoiceData.invoice_date,
+          due_date: invoiceData.due_date,
+        }
+        
+        // Store in session storage as backup
+        sessionStorage.setItem("lastInvoiceData", JSON.stringify(successData))
+        
+        // Redirect to success page with data as URL params
+        const params = new URLSearchParams({
+          invoice_number: invoiceData.invoice_number,
+          client_name: invoiceData.client_name,
+          total_due: invoiceData.total_due.toString(),
+          pdf_url: response.pdf_url || "",
+          invoice_date: invoiceData.invoice_date,
+          due_date: invoiceData.due_date,
         })
+        
+        window.location.href = `/invoice-success?${params.toString()}`
       } else {
         throw new Error(response.message || "Failed to generate PDF")
       }
