@@ -71,6 +71,27 @@ export function ConversationalInvoiceFlow() {
   const [showThankYou, setShowThankYou] = useState(false)
   const [webhookError, setWebhookError] = useState<string | null>(null)
   const [currentInvoiceNumber, setCurrentInvoiceNumber] = useState<string | null>(null)
+  const [hasRedirected, setHasRedirected] = useState(false)
+
+  // Auto-redirect to success page after 30 seconds or when completed
+  useEffect(() => {
+    if (currentInvoiceNumber && !hasRedirected) {
+      if (isCompleted && invoiceStatus?.pdf_url) {
+        // Completed with PDF - redirect immediately
+        setHasRedirected(true)
+        router.push(`/invoice-success?invoice_number=${encodeURIComponent(currentInvoiceNumber)}`)
+      } else if (isTimedOut) {
+        // Timeout - show notification and redirect to success page
+        toast({
+          title: "Invoice Taking Longer",
+          description: "Your invoice is taking longer than expected. You'll be redirected to check the status.",
+          variant: "default",
+        })
+        setHasRedirected(true)
+        router.push(`/invoice-success?invoice_number=${encodeURIComponent(currentInvoiceNumber)}`)
+      }
+    }
+  }, [currentInvoiceNumber, hasRedirected, isCompleted, isTimedOut, invoiceStatus?.pdf_url, router, toast])
 
   // Poll invoice status when an invoice is being generated
   const {
@@ -80,10 +101,12 @@ export function ConversationalInvoiceFlow() {
     isCompleted,
     isFailed,
     isGenerating,
-    isPolling
+    isPolling,
+    isTimedOut,
+    timeRemaining
   } = useInvoiceStatus(currentInvoiceNumber, {
-    pollInterval: 3000, // Check every 3 seconds
-    maxPollAttempts: 40, // Poll for up to 2 minutes
+    pollInterval: 2000, // Check every 2 seconds
+    maxPollAttempts: 15, // Poll for exactly 30 seconds (15 × 2s = 30s)
     enabled: !!currentInvoiceNumber && !pdfUrl // Only poll if we have an invoice number but no PDF yet
   })
 
@@ -249,7 +272,12 @@ export function ConversationalInvoiceFlow() {
         return
       }
 
-      throw new Error(response.message || "Failed to initiate invoice generation")
+      // Handle timeout scenarios gracefully
+      if (response.status === "error") {
+        throw new Error(response.message || "Failed to generate PDF")
+      }
+
+      throw new Error(response.message || "Unexpected response from invoice generation")
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to generate invoice"
       setWebhookError(errorMessage)
@@ -329,10 +357,23 @@ export function ConversationalInvoiceFlow() {
       {/* Full-screen Generating Overlay */}
       {(isSubmitting || isPolling) && (
         <div className="fixed inset-0 z-50 bg-white/70 backdrop-blur-sm flex items-center justify-center">
-          <div className="bg-white border border-gray-200 rounded-xl shadow-md px-8 py-6 text-center">
+          <div className="bg-white border border-gray-200 rounded-xl shadow-md px-8 py-6 text-center max-w-sm">
             <div className="w-10 h-10 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-900 font-medium">Generating your invoice...</p>
-            <p className="text-gray-600 text-sm mt-1">This can take up to 1 minute.</p>
+            <p className="text-gray-600 text-sm mt-1">
+              {isTimedOut ? (
+                "Taking longer than expected. Redirecting to check status..."
+              ) : (
+                `Time remaining: ${Math.ceil(timeRemaining / 1000)}s`
+              )}
+            </p>
+            {isTimedOut && (
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-amber-800 text-sm">
+                  If your invoice isn't ready, you can try generating another one.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}

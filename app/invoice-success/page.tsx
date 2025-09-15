@@ -25,7 +25,7 @@ function InvoiceSuccessContent() {
   const [invoiceData, setInvoiceData] = useState<InvoiceSuccessData | null>(null)
   const [isDownloading, setIsDownloading] = useState(false)
   const invoiceNumber = searchParams.get("invoice_number")
-  const { status, isGenerating, isPending, isCompleted, isFailed } = useInvoiceStatus(invoiceNumber, { enabled: Boolean(invoiceNumber), pollInterval: 2000, maxPollAttempts: 15 })
+  const { status, isGenerating, isPending, isCompleted, isFailed, isTimedOut, timeRemaining } = useInvoiceStatus(invoiceNumber, { enabled: Boolean(invoiceNumber), pollInterval: 2000, maxPollAttempts: 15 })
 
   useEffect(() => {
     // Prefer server status; fallback to any session data for display continuity
@@ -87,23 +87,31 @@ function InvoiceSuccessContent() {
   // If we have a PDF URL available, force UI to completed state and enable download
   const effectivePdfUrl = status?.pdf_url || invoiceData?.pdf_url || ""
   const showCompleted = Boolean(effectivePdfUrl)
+  const showTimeout = isTimedOut && !effectivePdfUrl
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl space-y-6">
         {/* Success Header */}
-        <Card className="border-green-200 bg-green-50">
+        <Card className={`${showTimeout ? 'border-amber-200 bg-amber-50' : 'border-green-200 bg-green-50'}`}>
           <CardContent className="p-6 text-center">
             <div className="flex justify-center mb-4">
-              <div className="rounded-full bg-green-100 p-3">
-                <CheckCircle className="h-8 w-8 text-green-600" />
+              <div className={`rounded-full p-3 ${showTimeout ? 'bg-amber-100' : 'bg-green-100'}`}>
+                <CheckCircle className={`h-8 w-8 ${showTimeout ? 'text-amber-600' : 'text-green-600'}`} />
               </div>
             </div>
-            <h1 className="text-2xl font-bold text-green-800 mb-2">
-              Invoice Generated Successfully!
+            <h1 className={`text-2xl font-bold mb-2 ${showTimeout ? 'text-amber-800' : 'text-green-800'}`}>
+              {showTimeout ? 'Invoice Processing' : 'Invoice Generated Successfully!'}
             </h1>
-            <p className="text-green-700">
-              Your professional invoice has been created and is ready for download.
+            <p className={showTimeout ? 'text-amber-700' : 'text-green-700'}>
+              {showTimeout ? (
+                <>
+                  Your invoice is taking longer than expected to generate.
+                  {timeRemaining > 0 && ` Time remaining: ${Math.ceil(timeRemaining / 1000)}s`}
+                </>
+              ) : (
+                'Your professional invoice has been created and is ready for download.'
+              )}
             </p>
           </CardContent>
         </Card>
@@ -132,16 +140,18 @@ function InvoiceSuccessContent() {
                   ${invoiceData.total_due.toFixed(2)}
                 </p>
               </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Status</label>
-                {showCompleted ? (
-                  <Badge variant="secondary" className="text-green-700 bg-green-100">Completed</Badge>
-                ) : isFailed ? (
-                  <Badge variant="secondary" className="text-red-700 bg-red-100">Failed</Badge>
-                ) : (
-                  <Badge variant="secondary" className="text-amber-700 bg-amber-100">Generating...</Badge>
-                )}
-              </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Status</label>
+                  {showCompleted ? (
+                    <Badge variant="secondary" className="text-green-700 bg-green-100">Completed</Badge>
+                  ) : isFailed ? (
+                    <Badge variant="secondary" className="text-red-700 bg-red-100">Failed</Badge>
+                  ) : showTimeout ? (
+                    <Badge variant="secondary" className="text-amber-700 bg-amber-100">Processing...</Badge>
+                  ) : (
+                    <Badge variant="secondary" className="text-amber-700 bg-amber-100">Generating...</Badge>
+                  )}
+                </div>
             </div>
 
             {invoiceData.invoice_date && (
@@ -163,34 +173,57 @@ function InvoiceSuccessContent() {
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4">
-          <Button
-            onClick={handleDownload}
-            disabled={isDownloading || !effectivePdfUrl}
-            className="flex-1 bg-green-600 hover:bg-green-700"
-            size="lg"
-          >
-            {isDownloading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Downloading...
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4 mr-2" />
-                {effectivePdfUrl ? 'Download Invoice' : 'Waiting for PDF URL...'}
-              </>
-            )}
-          </Button>
+          {showTimeout ? (
+            <>
+              <Button
+                onClick={handleBackToForm}
+                className="flex-1 bg-amber-600 hover:bg-amber-700"
+                size="lg"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Try Another Invoice
+              </Button>
+              <Button
+                onClick={() => window.location.reload()}
+                variant="outline"
+                className="flex-1"
+                size="lg"
+              >
+                Refresh Status
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                onClick={handleDownload}
+                disabled={isDownloading || !effectivePdfUrl}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                size="lg"
+              >
+                {isDownloading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    {effectivePdfUrl ? 'Download Invoice' : 'Waiting for PDF URL...'}
+                  </>
+                )}
+              </Button>
 
-          <Button
-            onClick={handleBackToForm}
-            variant="outline"
-            className="flex-1"
-            size="lg"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Create Another Invoice
-          </Button>
+              <Button
+                onClick={handleBackToForm}
+                variant="outline"
+                className="flex-1"
+                size="lg"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Create Another Invoice
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Additional Info */}

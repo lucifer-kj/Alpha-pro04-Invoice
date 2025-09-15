@@ -23,7 +23,7 @@ export function useInvoiceStatus(
 ) {
   const {
     pollInterval = 2000, // 2 seconds
-    maxPollAttempts = 30, // 1 minute total
+    maxPollAttempts = 15, // 30 seconds total (15 × 2s = 30s)
     enabled = true
   } = options
 
@@ -117,6 +117,9 @@ export function useInvoiceStatus(
     isPending,
     refetch,
     // Helper to check if polling is still active
-    isPolling: enabled && pollAttempts < maxPollAttempts && !isCompleted && !isFailed
+    isPolling: enabled && pollAttempts < maxPollAttempts && !isCompleted && !isFailed,
+    // Timeout helpers
+    isTimedOut: enabled && pollAttempts >= maxPollAttempts && !isCompleted && !isFailed,
+    timeRemaining: Math.max(0, (maxPollAttempts - pollAttempts) * pollInterval)
   }
 }
