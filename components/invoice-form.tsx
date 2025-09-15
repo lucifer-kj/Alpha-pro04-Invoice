@@ -11,7 +11,7 @@ import { InvoicePreview } from "./invoice-preview"
 import { WebhookConfig } from "./webhook-config"
 import { calculateInvoiceTotals } from "@/lib/invoice-calculations"
 import { validateInvoiceData } from "@/lib/validation"
-import { submitInvoiceToWebhook } from "@/lib/webhook-client"
+import { submitInvoiceToWebhook } from "@/lib/invoiceActions"
 import { useToast } from "@/hooks/use-toast"
 import { Download, ExternalLink, User, Settings2 } from "lucide-react"
 
@@ -97,12 +97,23 @@ export function InvoiceForm() {
     try {
       console.log("[v0] Starting invoice submission...")
 
-      const response = await submitInvoiceToWebhook(invoiceData, {
-        url: webhookConfig.url,
-        headers: {
-          "Content-Type": "application/json",
+      // Transform flat InvoiceData structure to expected nested structure
+      const transformedInvoiceData = {
+        client: {
+          name: invoiceData.client_name,
+          email: invoiceData.client_email,
+          phone: invoiceData.client_phone,
+          address: invoiceData.client_address,
+          cityState: `${invoiceData.client_city}${invoiceData.client_state_zip ? ', ' + invoiceData.client_state_zip : ''}`,
         },
-      })
+        line_items: invoiceData.line_items,
+        subtotal: invoiceData.subtotal,
+        tax: invoiceData.taxes,
+        total: invoiceData.total_due,
+        tax_rate: invoiceData.tax_rate,
+      }
+
+      const response = await submitInvoiceToWebhook(transformedInvoiceData)
 
       console.log("[v0] Webhook response received:", response)
 

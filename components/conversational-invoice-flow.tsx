@@ -202,10 +202,25 @@ export function ConversationalInvoiceFlow() {
     setWebhookError(null)
 
     try {
-      const response = await submitInvoiceToWebhook(invoiceData, {
-        url: "http://localhost:5678/webhook-test/88743cc0-d465-4fdb-a322-91f402cf6386",
-        headers: { "Content-Type": "application/json" },
-      })
+      // Transform flat InvoiceData structure to expected nested structure
+      const transformedInvoiceData = {
+        client: {
+          name: invoiceData.client_name,
+          email: invoiceData.client_email,
+          phone: invoiceData.client_phone || undefined,
+          address: invoiceData.client_address || undefined,
+          cityState: `${invoiceData.client_city}${invoiceData.client_state_zip ? ', ' + invoiceData.client_state_zip : ''}` || undefined,
+        },
+        line_items: invoiceData.line_items,
+        subtotal: invoiceData.subtotal,
+        tax: invoiceData.taxes,
+        total: invoiceData.total_due,
+        tax_rate: invoiceData.tax_rate,
+      }
+
+      console.log("[INVOICE-FLOW] Transformed invoice data for webhook:", transformedInvoiceData)
+
+      const response = await submitInvoiceToWebhook(transformedInvoiceData)
 
       if (response.status === "success" && response.pdf_url) {
         setPdfUrl(response.pdf_url)
