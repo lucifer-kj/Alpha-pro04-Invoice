@@ -32,6 +32,8 @@ export function useInvoiceStatus(
   const [error, setError] = useState<string | null>(null)
   const [pollAttempts, setPollAttempts] = useState(0)
 
+  // Don't early return - let the hook handle null invoice number naturally
+
   const fetchStatus = useCallback(async () => {
     if (!invoiceNumber || !enabled) return
 
@@ -62,7 +64,7 @@ export function useInvoiceStatus(
     } finally {
       setLoading(false)
     }
-  }, [invoiceNumber, enabled])
+  }, [invoiceNumber, enabled, maxPollAttempts])
 
   // Polling effect
   useEffect(() => {
@@ -70,14 +72,19 @@ export function useInvoiceStatus(
       return
     }
 
+    let intervalId: NodeJS.Timeout | null = null
+
     // Initial fetch
     fetchStatus()
 
     // Set up polling interval
-    const interval = setInterval(() => {
+    intervalId = setInterval(() => {
       setPollAttempts(prev => {
         if (prev >= maxPollAttempts) {
-          clearInterval(interval)
+          if (intervalId) {
+            clearInterval(intervalId)
+            intervalId = null
+          }
           return prev
         }
         fetchStatus()
@@ -85,8 +92,12 @@ export function useInvoiceStatus(
       })
     }, pollInterval)
 
-    return () => clearInterval(interval)
-  }, [invoiceNumber, enabled, pollInterval, maxPollAttempts, fetchStatus])
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId)
+      }
+    }
+  }, [invoiceNumber, enabled, pollInterval, maxPollAttempts])
 
   // Reset when invoice number changes
   useEffect(() => {
