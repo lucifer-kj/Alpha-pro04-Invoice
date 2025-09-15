@@ -84,6 +84,10 @@ function InvoiceSuccessContent() {
     )
   }
 
+  // If we have a PDF URL available, force UI to completed state and enable download
+  const effectivePdfUrl = status?.pdf_url || invoiceData?.pdf_url || ""
+  const showCompleted = Boolean(effectivePdfUrl)
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl space-y-6">
@@ -130,15 +134,13 @@ function InvoiceSuccessContent() {
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Status</label>
-                {isCompleted && (
-                  <Badge variant="secondary" className="text-green-700 bg-green-100">Ready for Download</Badge>
-                )}
-                {isGenerating || isPending ? (
-                  <Badge variant="secondary" className="text-amber-700 bg-amber-100">Generating...</Badge>
-                ) : null}
-                {isFailed ? (
+                {showCompleted ? (
+                  <Badge variant="secondary" className="text-green-700 bg-green-100">Completed</Badge>
+                ) : isFailed ? (
                   <Badge variant="secondary" className="text-red-700 bg-red-100">Failed</Badge>
-                ) : null}
+                ) : (
+                  <Badge variant="secondary" className="text-amber-700 bg-amber-100">Generating...</Badge>
+                )}
               </div>
             </div>
 
@@ -163,7 +165,7 @@ function InvoiceSuccessContent() {
         <div className="flex flex-col sm:flex-row gap-4">
           <Button
             onClick={handleDownload}
-            disabled={isDownloading || !status?.pdf_url}
+            disabled={isDownloading || !effectivePdfUrl}
             className="flex-1 bg-green-600 hover:bg-green-700"
             size="lg"
           >
@@ -175,7 +177,7 @@ function InvoiceSuccessContent() {
             ) : (
               <>
                 <Download className="h-4 w-4 mr-2" />
-                {status?.pdf_url ? 'Download Invoice PDF' : 'Waiting for PDF URL...'}
+                {effectivePdfUrl ? 'Download Invoice' : 'Waiting for PDF URL...'}
               </>
             )}
           </Button>

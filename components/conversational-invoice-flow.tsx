@@ -244,9 +244,8 @@ export function ConversationalInvoiceFlow() {
         return
       }
 
+      // Do not redirect on accepted; keep user on this page with overlay until callback arrives
       if (response.status === "accepted") {
-        // Background processing: redirect to success page which will poll
-        router.push(`/invoice-success?invoice_number=${encodeURIComponent(invoiceNumberFromServer)}`)
         return
       }
 
