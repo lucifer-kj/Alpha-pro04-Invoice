@@ -1,121 +1,97 @@
-import { type NextRequest, NextResponse } from "next/server"
-import InvoiceStateManager from "@/lib/invoice-state"
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
-// Invoice callback API endpoint to receive PDF URLs from Make.com
-export async function POST(request: NextRequest) {
+// Validation schema
+const invoiceCallbackSchema = z.object({
+  invoice_number: z.string().min(1, "Invoice number is required"),
+  status: z.enum(['success', 'failed', 'processing']),
+  pdf_base64: z.string().optional(),
+  download_url: z.string().url().optional()
+});
+
+export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const { pdf_url, invoice_number, status, message } = body
-
-    console.log("📩 Invoice callback received:")
-    console.log("  - Invoice Number:", invoice_number)
-    console.log("  - PDF URL:", pdf_url)
-    console.log("  - Status:", status)
-    console.log("  - Message:", message)
-
-    // Validate required fields
-    if (!pdf_url) {
-      console.error("❌ Missing pdf_url in callback")
+    // 1. Authentication
+    const apiKey = request.headers.get('x-api-key');
+    if (apiKey !== process.env.INVOICE_API_KEY) {
       return NextResponse.json(
-        { error: "pdf_url is required" },
-        { status: 400 }
-      )
+        { error: 'Unauthorized. Invalid API key.' },
+        { status: 401 }
+      );
     }
 
-    if (!invoice_number) {
-      console.error("❌ Missing invoice_number in callback")
+    // 2. Parse and validate payload
+    const payload = await request.json();
+    const validation = invoiceCallbackSchema.safeParse(payload);
+
+    if (!validation.success) {
       return NextResponse.json(
-        { error: "invoice_number is required" },
+        {
+          error: 'Invalid payload',
+          details: validation.error.format()
+        },
         { status: 400 }
-      )
+      );
     }
 
-    // Validate PDF URL format
-    try {
-      new URL(pdf_url)
-    } catch {
-      console.error("❌ Invalid PDF URL format:", pdf_url)
+    const { invoice_number, status, pdf_base64, download_url } = validation.data;
+
+    // 3. Validate that we have either base64 or download URL for success status
+    if (status === 'success' && !pdf_base64 && !download_url) {
       return NextResponse.json(
-        { error: "Invalid PDF URL format" },
+        { error: 'Successful invoices require either pdf_base64 or download_url' },
         { status: 400 }
-      )
+      );
     }
 
-    // 👉 Update invoice status in state management
-    const updatedStatus = InvoiceStateManager.markAsCompleted(invoice_number, pdf_url)
-    
-    if (!updatedStatus) {
-      console.warn(`⚠️ Invoice ${invoice_number} not found in state, creating new entry`)
-      InvoiceStateManager.createInvoice(invoice_number)
-      InvoiceStateManager.markAsCompleted(invoice_number, pdf_url)
+    // 4. Process the invoice callback (your business logic)
+    console.log(`Processing callback for invoice: ${invoice_number}, status: ${status}`);
+
+    // Example processing logic:
+    // - Update database record
+    // - Store PDF file
+    // - Send notification email
+    // - Update order status
+
+    if (pdf_base64) {
+      // Convert base64 to buffer and save to storage
+      const pdfBuffer = Buffer.from(pdf_base64, 'base64');
+      console.log(`Received PDF of size: ${pdfBuffer.length} bytes`);
+
+      // Save to database or cloud storage
+      // await saveInvoicePdf(invoice_number, pdfBuffer);
     }
 
-    console.log("✅ Invoice callback processed successfully")
-    console.log(`📄 PDF ready for download: ${pdf_url}`)
-    console.log(`📊 Updated status for invoice: ${invoice_number}`)
-
-    // TODO: Implement database storage
-    // await saveInvoiceToDatabase({
-    //   invoice_number,
-    //   pdf_url,
-    //   status: 'completed',
-    //   created_at: new Date(),
-    //   updated_at: new Date()
-    // })
-
-    // TODO: Implement WebSocket notification
-    // await notifyClient(invoice_number, pdf_url)
-
-    // TODO: Implement email notification
-    // await sendEmailNotification(invoice_number, pdf_url)
-
-    return NextResponse.json({ 
-      message: "Invoice callback received successfully",
-      invoice_number,
-      pdf_url,
-      timestamp: new Date().toISOString()
-    })
+    // 5. Return success response
+    return NextResponse.json(
+      {
+        success: true,
+        message: 'Invoice callback processed successfully',
+        invoice_number,
+        status,
+        received_at: new Date().toISOString()
+      },
+      { status: 200 }
+    );
 
   } catch (error) {
-    console.error("❌ Invoice callback error:", error)
-    
+    console.error('Invoice callback error:', error);
     return NextResponse.json(
-      { 
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error"
-      },
+      { error: 'Internal server error' },
       { status: 500 }
-    )
+    );
   }
 }
 
-// Handle GET requests (for testing)
+// Reject non-POST methods
 export async function GET() {
-  return NextResponse.json({
-    message: "Invoice callback endpoint is active",
-    endpoint: "/api/invoice-callback",
-    method: "POST",
-    expected_body: {
-      pdf_url: "https://example.com/invoice.pdf",
-      invoice_number: "INV-2025-001",
-      status: "success",
-      message: "Invoice generated successfully"
-    },
-    timestamp: new Date().toISOString()
-  })
+  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
 }
 
-// Handle unsupported methods
 export async function PUT() {
-  return NextResponse.json(
-    { error: "Method not allowed. Use POST." },
-    { status: 405 }
-  )
+  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
 }
 
 export async function DELETE() {
-  return NextResponse.json(
-    { error: "Method not allowed. Use POST." },
-    { status: 405 }
-  )
+  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
 }
