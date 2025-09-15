@@ -107,7 +107,21 @@ export function MinimalInvoiceFlow() {
     try {
       const result = await submitInvoiceToWebhook(invoiceData)
       
-      if (result.status === "accepted") {
+      if (result.status === "accepted" || result.status === "success") {
+        // Store invoice data in sessionStorage for success page
+        const successData = {
+          invoice_number: result.invoice_number || `INV-${Date.now()}`,
+          client_name: invoiceData.client.name,
+          total_due: invoiceData.total,
+          invoice_date: new Date().toLocaleDateString(),
+          due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+          pdf_url: result.pdf_url || "" // Will be updated when PDF is ready
+        }
+        
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem("lastInvoiceData", JSON.stringify(successData))
+        }
+        
         toast({
           title: "Invoice Submitted",
           description: "Your invoice is being generated. You'll be redirected to check the status.",

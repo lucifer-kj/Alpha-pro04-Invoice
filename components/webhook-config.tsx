@@ -6,8 +6,42 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { testWebhookConnection, validateWebhookUrl } from "@/lib/webhook-client"
 import { Settings, CheckCircle, XCircle, Loader2 } from "lucide-react"
+
+// Simple webhook URL validation
+function validateWebhookUrl(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url)
+    return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:"
+  } catch {
+    return false
+  }
+}
+
+// Simple webhook connection test
+async function testWebhookConnection(config: { url: string; headers?: Record<string, string> }): Promise<boolean> {
+  try {
+    const testPayload = {
+      test: true,
+      timestamp: new Date().toISOString(),
+      message: "Connection test from Alpha Business Digital Invoice App",
+    }
+
+    const response = await fetch(config.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...config.headers,
+      },
+      body: JSON.stringify(testPayload),
+    })
+
+    return response.ok
+  } catch (error) {
+    console.error("Webhook connection test failed:", error)
+    return false
+  }
+}
 
 interface WebhookConfigProps {
   onConfigChange?: (config: { url: string }) => void
@@ -15,7 +49,7 @@ interface WebhookConfigProps {
 
 export function WebhookConfig({ onConfigChange }: WebhookConfigProps) {
   const [webhookUrl, setWebhookUrl] = useState(
-    "http://localhost:5678/webhook-test/88743cc0-d465-4fdb-a322-91f402cf6386",
+    "https://hook.eu2.make.com/84agsujsolsdlfazqvco8mo06ctypst9",
   )
   const [isTestingConnection, setIsTestingConnection] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "success" | "error">("idle")
@@ -91,7 +125,7 @@ export function WebhookConfig({ onConfigChange }: WebhookConfigProps) {
             id="webhook-url"
             value={webhookUrl}
             onChange={(e) => setWebhookUrl(e.target.value)}
-            placeholder="http://localhost:5678/webhook-test/..."
+            placeholder="https://hook.eu2.make.com/..."
           />
         </div>
 

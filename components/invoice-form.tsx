@@ -46,7 +46,7 @@ export function InvoiceForm() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [showWebhookConfig, setShowWebhookConfig] = useState(false)
   const [webhookConfig, setWebhookConfig] = useState({
-    url: "http://localhost:5678/webhook-test/88743cc0-d465-4fdb-a322-91f402cf6386",
+    url: "https://hook.eu2.make.com/84agsujsolsdlfazqvco8mo06ctypst9",
   })
 
   const [invoiceData, setInvoiceData] = useState<InvoiceData>({
@@ -223,7 +223,7 @@ export function InvoiceForm() {
                   max="100"
                   step="0.1"
                   value={invoiceData.tax_rate}
-                  onChange={(e) => handleClientInfoChange("tax_rate", Number.parseFloat(e.target.value) || 0)}
+                  onChange={(e) => handleClientInfoChange("tax_rate", parseFloat(e.target.value) || 0)}
                   placeholder="18"
                   className="h-11"
                 />
@@ -303,7 +303,14 @@ export function InvoiceForm() {
               className="flex-1 h-12 text-base font-medium"
               size="lg"
             >
-              {isSubmitting ? "Generating Invoice..." : "Generate Invoice"}
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Generating Invoice...
+                </>
+              ) : (
+                "Generate Invoice"
+              )}
             </Button>
 
             {pdfUrl && (

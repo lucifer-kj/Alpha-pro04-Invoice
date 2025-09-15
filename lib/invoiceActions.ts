@@ -87,14 +87,16 @@ export async function submitInvoiceToWebhook(invoiceData: InvoiceData) {
     console.log("[INVOICE-ACTIONS] Sending invoice to Make.com webhook...");
     console.log("[INVOICE-ACTIONS] Payload:", JSON.stringify(payload, null, 2));
 
-    // 🔹 Ensure an invoice record exists as 'generating'
+    // 🔹 Create invoice record in database
     try {
       await fetch(`/api/invoice-status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ invoice_number: invoiceNumber, status: 'generating' })
       })
-    } catch {}
+    } catch (error) {
+      console.error("[INVOICE-ACTIONS] Failed to create invoice record:", error)
+    }
 
     // 🔹 Send to Make.com webhook
     const response = await axios.post(
