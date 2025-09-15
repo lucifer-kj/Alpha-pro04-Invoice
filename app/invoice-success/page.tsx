@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -17,7 +17,7 @@ interface InvoiceSuccessData {
   due_date: string
 }
 
-export default function InvoiceSuccessPage() {
+function InvoiceSuccessContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { toast } = useToast()
@@ -58,7 +58,7 @@ export default function InvoiceSuccessPage() {
     try {
       // Open PDF in new tab for download
       window.open(invoiceData.pdf_url, "_blank")
-      
+
       toast({
         title: "Download Started",
         description: "Your invoice PDF is being downloaded.",
@@ -180,7 +180,7 @@ export default function InvoiceSuccessPage() {
               </>
             )}
           </Button>
-          
+
           <Button
             onClick={handleBackToForm}
             variant="outline"
@@ -202,7 +202,7 @@ export default function InvoiceSuccessPage() {
               <div>
                 <h3 className="font-medium text-blue-800 mb-1">What's Next?</h3>
                 <p className="text-sm text-blue-700">
-                  Your invoice has been generated and sent to your webhook endpoint. 
+                  Your invoice has been generated and sent to your webhook endpoint.
                   You can now download the PDF or create another invoice.
                 </p>
               </div>
@@ -211,5 +211,22 @@ export default function InvoiceSuccessPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function InvoiceSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading invoice data...</p>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <InvoiceSuccessContent />
+    </Suspense>
   )
 }
