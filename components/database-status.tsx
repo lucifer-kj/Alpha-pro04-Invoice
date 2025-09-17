@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { RefreshCw, Database, CheckCircle, XCircle, AlertCircle } from "lucide-react"
+import { RefreshCw, Database, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp } from "lucide-react"
 
 interface DatabaseStats {
   invoices: {
@@ -34,6 +34,7 @@ export function DatabaseStatus() {
   const [webhookStats, setWebhookStats] = useState<WebhookStats | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   const fetchStats = async () => {
     setLoading(true)
@@ -93,28 +94,42 @@ export function DatabaseStatus() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
+      <Card className="transition-all duration-300 ease-in-out">
+        <CardHeader 
+          className="cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Database className="h-5 w-5" />
               <CardTitle>Database Status</CardTitle>
             </div>
-            <Button 
-              onClick={fetchStats} 
-              disabled={loading}
-              size="sm"
-              variant="outline"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            <div className="flex items-center space-x-2">
+              <Button 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  fetchStats()
+                }}
+                disabled={loading}
+                size="sm"
+                variant="outline"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              {isExpanded ? (
+                <ChevronUp className="h-4 w-4 text-gray-500" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-gray-500" />
+              )}
+            </div>
           </div>
           <CardDescription>
             SQLite database status and statistics for invoice and webhook data
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        {isExpanded && (
+          <CardContent className="space-y-4">
           {error && (
             <div className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-md">
               <AlertCircle className="h-4 w-4 text-red-500" />
@@ -172,7 +187,8 @@ export function DatabaseStatus() {
               </div>
             </div>
           )}
-        </CardContent>
+          </CardContent>
+        )}
       </Card>
     </div>
   )
