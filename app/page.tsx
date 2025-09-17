@@ -20,22 +20,7 @@ export default function HomePage() {
         
         {/* Page Content */}
         {currentPage === 'home' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <InvoiceForm />
-            <div className="lg:col-span-1">
-              {/* Invoice Preview placeholder - you can add the actual component here */}
-              <div className="bg-white rounded-lg border p-6 shadow-sm">
-                <h3 className="text-lg font-semibold mb-4">Invoice Preview</h3>
-                <div className="text-center py-8 text-gray-500">
-                  <div className="w-16 h-16 bg-teal-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <span className="text-teal-600 font-bold text-2xl">$</span>
-                  </div>
-                  <p className="text-teal-600 font-semibold text-lg">INVOICE</p>
-                  <p className="text-gray-400 font-mono">#INV-XXXX-XXX</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <InvoiceForm />
         ) : (
           <StoragePage />
         )}

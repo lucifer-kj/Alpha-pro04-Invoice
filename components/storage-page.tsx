@@ -99,7 +99,7 @@ export function StoragePage() {
   }
 
   return (
-    <Card className="w-full">
+    <Card className="w-full rounded-2xl border border-gray-200/70 shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <FileText className="h-5 w-5" />
@@ -114,63 +114,51 @@ export function StoragePage() {
             <p className="text-sm">Downloaded invoices will appear here</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Client Name</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Invoice #</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Amount</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoices.map((invoice) => (
-                  <tr key={invoice.id} className="border-b hover:bg-gray-50 transition-colors">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                          <User className="h-4 w-4 text-purple-600" />
-                        </div>
-                        <div>
-                          <div className="font-medium text-gray-900">{invoice.clientName}</div>
-                          <div className="text-sm text-gray-500 flex items-center space-x-1">
-                            <Calendar className="h-3 w-3" />
-                            <span>{invoice.createdAt}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 font-mono text-sm text-gray-700">
-                      {invoice.invoiceNumber}
-                    </td>
-                    <td className="py-4 px-4 font-medium text-gray-900">
-                      ${invoice.amount.toFixed(2)}
-                    </td>
-                    <td className="py-4 px-4">
-                      {getStatusBadge(invoice.status)}
-                    </td>
-                    <td className="py-4 px-4">
-                      {invoice.downloadUrl ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDownload(invoice)}
-                          disabled={loading}
-                          className="flex items-center space-x-1"
-                        >
-                          <Download className="h-3 w-3" />
-                          <span>Re-dl</span>
-                        </Button>
-                      ) : (
-                        <span className="text-gray-400 text-sm">N/A</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-3">
+            {invoices.map((invoice) => (
+              <div
+                key={invoice.id}
+                className="flex items-center justify-between p-4 border rounded-xl bg-white hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 border-gray-200/70"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <User className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900">{invoice.clientName}</div>
+                    <div className="text-sm text-gray-500 flex items-center space-x-2">
+                      <span className="font-mono">{invoice.invoiceNumber}</span>
+                      <span>•</span>
+                      <span className="flex items-center space-x-1">
+                        <Calendar className="h-3 w-3" />
+                        <span>{invoice.createdAt}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-4">
+                  <div className="text-right">
+                    <div className="font-semibold">${invoice.amount.toFixed(2)}</div>
+                    {getStatusBadge(invoice.status)}
+                  </div>
+                  {invoice.downloadUrl ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDownload(invoice)}
+                      disabled={loading}
+                      className="flex items-center space-x-1 transition-transform duration-200 hover:scale-[1.02]"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span>Re-download</span>
+                    </Button>
+                  ) : (
+                    <span className="text-gray-400 text-sm">N/A</span>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </CardContent>

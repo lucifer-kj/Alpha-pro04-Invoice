@@ -1,7 +1,5 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
 import { Home, FileText } from "lucide-react"
 
 interface NavigationProps {
@@ -11,23 +9,29 @@ interface NavigationProps {
 
 export function Navigation({ currentPage, onPageChange }: NavigationProps) {
   return (
-    <div className="flex items-center space-x-1 mb-6">
-      <Button
-        variant={currentPage === 'home' ? 'default' : 'ghost'}
-        onClick={() => onPageChange('home')}
-        className="flex items-center space-x-2"
-      >
-        <Home className="h-4 w-4" />
-        <span>Home</span>
-      </Button>
-      <Button
-        variant={currentPage === 'storage' ? 'default' : 'ghost'}
-        onClick={() => onPageChange('storage')}
-        className="flex items-center space-x-2"
-      >
-        <FileText className="h-4 w-4" />
-        <span>Storage</span>
-      </Button>
-    </div>
+    <nav className="mb-6">
+      <ul className="flex items-center space-x-6 text-sm font-medium text-gray-600">
+        <li>
+          <button
+            onClick={() => onPageChange('home')}
+            className={`inline-flex items-center gap-2 transition-all duration-200 hover:text-gray-900 ${currentPage === 'home' ? 'text-gray-900' : ''}`}
+          >
+            <Home className="h-4 w-4" />
+            <span>Home</span>
+          </button>
+          <div className={`h-0.5 rounded-full transition-all duration-300 ${currentPage === 'home' ? 'w-full bg-gradient-to-r from-purple-500 to-blue-500' : 'w-0 bg-transparent'}`}></div>
+        </li>
+        <li>
+          <button
+            onClick={() => onPageChange('storage')}
+            className={`inline-flex items-center gap-2 transition-all duration-200 hover:text-gray-900 ${currentPage === 'storage' ? 'text-gray-900' : ''}`}
+          >
+            <FileText className="h-4 w-4" />
+            <span>Storage</span>
+          </button>
+          <div className={`h-0.5 rounded-full transition-all duration-300 ${currentPage === 'storage' ? 'w-full bg-gradient-to-r from-purple-500 to-blue-500' : 'w-0 bg-transparent'}`}></div>
+        </li>
+      </ul>
+    </nav>
   )
 }

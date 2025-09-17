@@ -5,10 +5,10 @@ import { DatabaseStatus } from "@/components/database-status"
 export function BentoHeader() {
   return (
     <div className="w-full">
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 mb-8">
         {/* App Title & Description - Takes 3 columns */}
-        <div className="lg:col-span-3">
-          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-2xl p-6 shadow-sm">
+        <div className="lg:col-span-3 h-full">
+          <div className="bg-gradient-to-r from-purple-50 to-blue-50/60 border border-purple-200/60 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
             <div className="flex items-center space-x-4 mb-4">
               <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
                 <span className="text-white font-bold text-xl">A</span>
@@ -41,7 +41,7 @@ export function BentoHeader() {
         </div>
         
         {/* Database Status Box - Takes 1 column */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 h-full">
           <DatabaseStatus />
         </div>
       </div>

@@ -133,9 +133,10 @@ export function InvoiceForm() {
   }
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
-      {/* Left Column - Form (2/3 width on xl screens) */}
-      <div className="xl:col-span-2 space-y-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+
+      {/* Left Column - Full form + parser stacked */}
+      <div className="space-y-6">
 
         {/* Client Information */}
         <Card className="shadow-sm border-border/50">
@@ -305,10 +306,11 @@ export function InvoiceForm() {
             )}
           </div>
         </div>
+
       </div>
 
-      {/* Right Column - Preview (1/3 width on xl screens, full width on smaller) */}
-      <div className="xl:col-span-1">
+      {/* Right Column - Preview (sticky on large screens) */}
+      <div className="lg:col-span-1">
         <div className="xl:sticky xl:top-8">
           <InvoicePreview invoiceData={invoiceData} />
         </div>

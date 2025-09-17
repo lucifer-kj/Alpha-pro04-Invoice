@@ -94,9 +94,9 @@ export function DatabaseStatus() {
 
   return (
     <div className="space-y-6">
-      <Card className="transition-all duration-300 ease-in-out">
+      <Card className={`rounded-2xl border border-gray-200/70 shadow-sm hover:shadow-md transition-[box-shadow,transform] duration-300 ease-in-out ${isExpanded ? 'transform md:scale-[1.01]' : ''}`}>
         <CardHeader 
-          className="cursor-pointer hover:bg-gray-50 transition-colors"
+          className="cursor-pointer hover:bg-gray-50/60 transition-colors rounded-2xl"
           onClick={() => setIsExpanded(!isExpanded)}
         >
           <div className="flex items-center justify-between">
@@ -113,6 +113,7 @@ export function DatabaseStatus() {
                 disabled={loading}
                 size="sm"
                 variant="outline"
+                className="transition-transform duration-200 hover:scale-[1.02]"
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
@@ -128,8 +129,9 @@ export function DatabaseStatus() {
             SQLite database status and statistics for invoice and webhook data
           </CardDescription>
         </CardHeader>
-        {isExpanded && (
-          <CardContent className="space-y-4">
+        <CardContent 
+          className={`space-y-4 overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out ${isExpanded ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}
+        >
           {error && (
             <div className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-md">
               <AlertCircle className="h-4 w-4 text-red-500" />
@@ -188,7 +190,6 @@ export function DatabaseStatus() {
             </div>
           )}
           </CardContent>
-        )}
       </Card>
     </div>
   )
