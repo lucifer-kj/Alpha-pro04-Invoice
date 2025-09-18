@@ -1,6 +1,7 @@
 "use client"
 
 import { DatabaseStatus } from "@/components/database-status"
+import Image from "next/image"
 
 export function BentoHeader() {
   return (
@@ -10,9 +11,14 @@ export function BentoHeader() {
         <div className="lg:col-span-3 h-full">
           <div className="bg-gradient-to-r from-purple-50 to-blue-50/60 border border-purple-200/60 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
             <div className="flex items-center space-x-4 mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-xl">A</span>
-              </div>
+              <Image
+                src="/alpha-logo.png"
+                alt="Alpha Invoice Logo"
+                width={48}
+                height={48}
+                className="rounded-xl shadow-lg"
+                priority
+              />
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                   Alpha Invoice

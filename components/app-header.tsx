@@ -1,6 +1,7 @@
 "use client"
 
 import { Card, CardContent } from "@/components/ui/card"
+import Image from "next/image"
 
 export function AppHeader() {
   return (
@@ -8,9 +9,14 @@ export function AppHeader() {
       <CardContent className="p-8">
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center space-x-3 mb-6">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-xl">A</span>
-            </div>
+            <Image
+              src="/alpha-logo.png"
+              alt="Alpha Invoice Logo"
+              width={48}
+              height={48}
+              className="rounded-xl shadow-lg"
+              priority
+            />
             <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
               Alpha Invoice
             </h1>
