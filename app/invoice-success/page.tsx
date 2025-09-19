@@ -105,17 +105,17 @@ function InvoiceSuccessContent() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl space-y-6">
         {/* Success Header */}
-        <Card className={`${showTimeout ? 'border-amber-200 bg-amber-50' : 'border-green-200 bg-green-50'}`}>
+        <Card className={`${showTimeout ? 'border-amber-200 bg-amber-50' : 'border-blue-200 bg-blue-50'}`}>
           <CardContent className="p-6 text-center">
             <div className="flex justify-center mb-4">
-              <div className={`rounded-full p-3 ${showTimeout ? 'bg-amber-100' : 'bg-green-100'}`}>
-                <CheckCircle className={`h-8 w-8 ${showTimeout ? 'text-amber-600' : 'text-green-600'}`} />
+              <div className={`rounded-full p-3 ${showTimeout ? 'bg-amber-100' : 'bg-blue-100'}`}>
+                <CheckCircle className={`h-8 w-8 ${showTimeout ? 'text-amber-600' : 'text-blue-600'}`} />
               </div>
             </div>
-            <h1 className={`text-2xl font-bold mb-2 ${showTimeout ? 'text-amber-800' : 'text-green-800'}`}>
-              {showTimeout ? 'Invoice Processing' : 'Invoice Generated Successfully!'}
+            <h1 className={`text-2xl font-bold mb-2 ${showTimeout ? 'text-amber-800' : 'text-blue-800'}`}>
+              {showTimeout ? 'Invoice Processing' : 'Your invoice will be generated and downloaded from here'}
             </h1>
-            <p className={showTimeout ? 'text-amber-700' : 'text-green-700'}>
+            <p className={showTimeout ? 'text-amber-700' : 'text-blue-700'}>
               {showTimeout ? (
                 <>
                   Your invoice is taking longer than expected to generate.
@@ -153,14 +153,14 @@ function InvoiceSuccessContent() {
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Total Amount</label>
-                <p className="text-lg font-semibold text-green-600">
+                <p className="text-lg font-semibold text-blue-600">
                   ${invoiceData.total_due.toFixed(2)}
                 </p>
               </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Status</label>
                   {showCompleted ? (
-                    <Badge variant="secondary" className="text-green-700 bg-green-100">Completed</Badge>
+                    <Badge variant="secondary" className="text-blue-700 bg-blue-100">Completed</Badge>
                   ) : isFailed ? (
                     <Badge variant="secondary" className="text-red-700 bg-red-100">Failed</Badge>
                   ) : shouldStopPolling && !status?.pdf_url ? (
@@ -216,7 +216,7 @@ function InvoiceSuccessContent() {
               <Button
                 onClick={handleDownload}
                 disabled={isDownloading || !effectivePdfUrl}
-                className="flex-1 bg-green-600 hover:bg-green-700"
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
                 size="lg"
               >
                 {isDownloading ? (

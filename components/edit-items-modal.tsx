@@ -25,7 +25,7 @@ interface EditItemsModalProps {
 export function EditItemsModal({ isOpen, onClose, items, onSave }: EditItemsModalProps) {
   const [editedItems, setEditedItems] = useState<LineItem[]>(items)
 
-  const updateItem = (index: number, field: keyof LineItem, value: string | number) => {
+  const updateItem = (index: number, field: keyof LineItem, value: string | number | boolean) => {
     setEditedItems((prev) => {
       const updated = [...prev]
       updated[index] = {
@@ -54,6 +54,7 @@ export function EditItemsModal({ isOpen, onClose, items, onSave }: EditItemsModa
         quantity: 1,
         unit_price: 0,
         total: 0,
+        isMonthly: false,
       },
     ])
   }
@@ -117,8 +118,24 @@ export function EditItemsModal({ isOpen, onClose, items, onSave }: EditItemsModa
               <div className="col-span-2">
                 <Label>Total</Label>
                 <div className="h-10 flex items-center px-3 bg-muted rounded-md text-sm font-medium">
-                  ${item.total.toFixed(2)}
+                  ${item.total.toFixed(2)}{item.isMonthly ? '/month' : ''}
                 </div>
+              </div>
+
+              <div className="col-span-1 flex items-center gap-2">
+                <div className="text-xs text-muted-foreground">Monthly</div>
+                <button
+                  onClick={() => updateItem(index, 'isMonthly', !item.isMonthly)}
+                  className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                    item.isMonthly ? 'bg-primary' : 'bg-gray-200'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      item.isMonthly ? 'translate-x-5' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
               </div>
 
               <div className="col-span-1">

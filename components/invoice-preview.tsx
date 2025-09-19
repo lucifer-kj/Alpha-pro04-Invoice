@@ -129,10 +129,10 @@ export function InvoicePreview({ invoiceData }: InvoicePreviewProps) {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium">{item.description}</p>
                     <p className="text-muted-foreground text-xs">
-                      {item.quantity} × {formatCurrency(item.unit_price)}
+                      {formatCurrency(item.unit_price)}{item.isMonthly ? '/month' : ''}
                     </p>
                   </div>
-                  <p className="font-medium font-mono ml-3">{formatCurrency(item.total)}</p>
+                  <p className="font-medium font-mono ml-3">{formatCurrency(item.total)}{item.isMonthly ? '/month' : ''}</p>
                 </div>
               ))}
             </div>
@@ -159,7 +159,7 @@ export function InvoicePreview({ invoiceData }: InvoicePreviewProps) {
           <Separator />
           <div className="flex justify-between font-semibold text-lg">
             <span>Total Due:</span>
-            <span className="text-primary font-mono">{formatCurrency(invoiceData.total_due)}</span>
+            <span className="text-primary font-mono">{formatCurrency(invoiceData.total_due)}{invoiceData.isMonthly ? '/month' : ''}</span>
           </div>
         </div>
 

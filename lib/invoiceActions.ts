@@ -4,6 +4,7 @@ interface LineItem {
   description: string;
   quantity: number;
   unit_price: number;
+  isMonthly?: boolean;
 }
 
 interface InvoiceData {
@@ -59,8 +60,8 @@ export async function submitInvoiceToWebhook(invoiceData: InvoiceData) {
       (acc, item, index) => {
         const keyItem = `item${index + 1}`;
         const keyPrice = `price${index + 1}`;
-        acc[keyItem] = item.description;
-        acc[keyPrice] = formatCurrency(item.unit_price * item.quantity);
+        acc[keyItem] = item.description + (item.isMonthly ? " (per month)" : "");
+        acc[keyPrice] = formatCurrency(item.unit_price * item.quantity) + (item.isMonthly ? "/month" : "");
         return acc;
       },
       {} as Record<string, string>

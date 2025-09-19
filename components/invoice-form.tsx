@@ -19,6 +19,7 @@ export interface LineItem {
   quantity: number
   unit_price: number
   total: number
+  isMonthly?: boolean
 }
 
 export interface InvoiceData {
@@ -37,6 +38,7 @@ export interface InvoiceData {
   taxes: number
   total_due: number
   notes: string
+  isMonthly?: boolean
 }
 
 export function InvoiceForm() {
@@ -60,6 +62,7 @@ export function InvoiceForm() {
     taxes: 0,
     total_due: 0,
     notes: "",
+    isMonthly: false,
   })
 
   const handleClientInfoChange = (field: keyof InvoiceData, value: string | number) => {
@@ -69,9 +72,9 @@ export function InvoiceForm() {
     })
   }
 
-  const handleServicesTextParsed = (lineItems: LineItem[]) => {
+  const handleServicesTextParsed = (lineItems: LineItem[], isMonthly?: boolean) => {
     setInvoiceData((prev) => {
-      const updated = { ...prev, line_items: lineItems }
+      const updated = { ...prev, line_items: lineItems, isMonthly: isMonthly || false }
       return calculateInvoiceTotals(updated)
     })
   }

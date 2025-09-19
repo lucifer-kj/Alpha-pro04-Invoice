@@ -25,7 +25,7 @@ export function ConversationalInput({ onServicesParsed }: ConversationalInputPro
 
     setIsProcessing(true)
     try {
-      const items = parseServicesText(inputText)
+      const items = parseServicesText(inputText).map((it) => ({ ...it, isMonthly: false }))
       setParsedItems(items)
       onServicesParsed(items)
     } catch (error) {
@@ -44,6 +44,15 @@ export function ConversationalInput({ onServicesParsed }: ConversationalInputPro
   const handleEditSave = (editedItems: LineItem[]) => {
     setParsedItems(editedItems)
     onServicesParsed(editedItems)
+  }
+
+  const toggleItemMonthly = (index: number) => {
+    setParsedItems((prev) => {
+      const updated = [...prev]
+      updated[index] = { ...updated[index], isMonthly: !updated[index].isMonthly }
+      onServicesParsed(updated)
+      return updated
+    })
   }
 
   const exampleSuggestions = [
@@ -143,12 +152,27 @@ export function ConversationalInput({ onServicesParsed }: ConversationalInputPro
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{item.description}</p>
                       <p className="text-xs text-muted-foreground">
-                        Qty: {item.quantity} × ${item.unit_price.toFixed(2)}
+                        ${item.unit_price.toFixed(2)}{item.isMonthly ? '/month' : ''}
                       </p>
                     </div>
-                    <Badge variant="secondary" className="ml-3 font-mono">
-                      ${item.total.toFixed(2)}
-                    </Badge>
+                    <div className="flex items-center gap-3">
+                      <div className="text-xs text-muted-foreground">Monthly</div>
+                      <button
+                        onClick={() => toggleItemMonthly(index)}
+                        className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                          item.isMonthly ? 'bg-primary' : 'bg-gray-200'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            item.isMonthly ? 'translate-x-5' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                      <Badge variant="secondary" className="ml-1 font-mono">
+                        ${item.total.toFixed(2)}{item.isMonthly ? '/month' : ''}
+                      </Badge>
+                    </div>
                   </div>
                 ))}
               </div>
